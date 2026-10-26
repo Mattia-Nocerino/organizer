@@ -309,7 +309,7 @@ function ask(msg, yes = 'Conferma'){
 /* ---------- dati derivati ---------- */
 const wkKey = off => iso(addDays(monday(today()), 7*off));
 const piatto = id => S.piatti.find(p => p.id === id);
-const TIPI = [['primo','Primo'],['secondo','Secondo'],['unico','Piatto unico']];
+const TIPI = [['unico','Piatto unico'],['primo','Primo'],['secondo','Secondo']];
 const tipoDi = p => p.tipo || (/^(pizza|piadin)/i.test(p.nome) ? 'unico' : /^(pasta|pastina|risott|riso|minestr|vellutat|tortellini|zupp|crema|gnocchi)/i.test(p.nome) ? 'primo' : 'secondo');
 const tipoLabel = p => TIPI.find(t => t[0] === tipoDi(p))[1];
 const slotLabel = v => !v ? '' : v.id ? (piatto(v.id)?.nome || 'Piatto eliminato') : v.t;
@@ -395,7 +395,7 @@ function vOggi(){
   if (!hasContent(S)){
     h += `<div class="banner needs-write"><div><p><strong>Per cominciare</strong></p>
       <ol class="steps"><li>Carica i piatti di esempio o aggiungi i vostri.</li><li>Riempi il menù della settimana: la lista della spesa si crea da sola.</li><li>Inserisci le scadenze fisse (bollo, assicurazione, compleanni) una volta sola.</li></ol></div>
-      <button class="btn" data-act="seed">Carica 24 piatti di esempio</button></div>`;
+      <button class="btn" data-act="seed">Carica 23 piatti di esempio</button></div>`;
   } else if (weekend && nextPlan < 4){
     h += `<div class="banner needs-write"><p>Il weekend è il momento giusto per preparare il menù della prossima settimana.</p>
       <button class="btn" data-act="planNext">Prepara la prossima settimana</button></div>`;
@@ -435,7 +435,7 @@ function vMenu(){
   h += `</div><h2>I vostri piatti</h2>`;
   if (!S.piatti.length){
     h += `<p class="muted">Ancora nessun piatto. Una lista di 15–20 piatti che piacciono a tutti rende la scelta velocissima.</p>
-      <div class="bar needs-write"><button class="btn" data-act="seed">Carica 24 piatti di esempio</button><button class="btn ghost" data-act="dish">Aggiungi piatto</button></div>`;
+      <div class="bar needs-write"><button class="btn" data-act="seed">Carica 23 piatti di esempio</button><button class="btn ghost" data-act="dish">Aggiungi piatto</button></div>`;
   } else {
     h += `<div class="bar needs-write"><button class="btn small" data-act="dish">Aggiungi piatto</button></div>
       <ul class="dishes">${[...S.piatti].sort((a,b) => a.nome.localeCompare(b.nome,'it')).map(p =>
@@ -621,7 +621,7 @@ function dishDlg(id){
     <label class="f">Ingredienti da comprare, uno per riga<textarea id="ing" placeholder="pasta corta&#10;fagioli borlotti&#10;sedano">${p ? esc((p.ingredienti||[]).join('\n')) : ''}</textarea></label>
     <div class="dlg-actions">${p ? '<button type="button" class="btn danger" id="del">Elimina</button>' : ''}<span class="spacer"></span>
     <button type="button" class="btn ghost" id="cls">Annulla</button><button type="button" class="btn" id="ok">Salva</button></div>`, d => {
-    d.querySelector('#tp').value = p ? tipoDi(p) : 'primo';
+    d.querySelector('#tp').value = p ? tipoDi(p) : 'unico';
     d.querySelector('#cls').addEventListener('click', closeDlg);
     d.querySelector('#ok').addEventListener('click', () => {
       const nome = d.querySelector('#n').value.trim(); if (!nome){ d.querySelector('#n').focus(); return; }
@@ -771,35 +771,34 @@ function impDlg(id){
 
 /* ---------- piatti di esempio ---------- */
 const ESEMPI = [
-  ['Pastina in brodo vegetale',['pastina','verdure per brodo','parmigiano']],
-  ['Pasta al pomodoro',['pasta','passata di pomodoro','basilico','parmigiano']],
-  ['Pasta e ceci (Bimby)',['pasta corta','ceci','rosmarino','aglio']],
-  ['Risotto alla zucca (Bimby)',['riso','zucca','cipolla','brodo vegetale','parmigiano']],
-  ['Pasta e zucca',['pasta corta','zucca','cipolla','parmigiano']],
-  ['Pollo al forno con patate',['cosce di pollo','patate','rosmarino']],
-  ['Frittata di zucchine al forno',['uova','zucchine','parmigiano']],
-  ['Polpette al sugo (Bimby)',['carne macinata','uova','pangrattato','passata di pomodoro','parmigiano']],
-  ['Pasta al pesto',['pasta','pesto','fagiolini','patate']],
-  ['Minestrone (Bimby)',['verdure per minestrone','pasta corta','parmigiano']],
-  ['Petto di pollo e insalata',['petto di pollo','insalata','pomodori']],
-  ['Salmone al forno',['salmone','limone','patate']],
-  ['Pizza con impasto pronto',['impasto per pizza pronto','mozzarella','passata di pomodoro']],
+  ['Pastina e piselli in brodo (Bimby)',['pastina','piselli','verdure per brodo','parmigiano']],
+  ['Pasta al pomodoro con tonno e zucchine',['pasta','passata di pomodoro','tonno','zucchine']],
+  ['Pasta e ceci (Bimby)',['pasta corta','ceci','carote','rosmarino','aglio']],
+  ['Pasta zucca e ricotta',['pasta corta','zucca','ricotta','cipolla','parmigiano']],
+  ['Pollo al forno con patate e carote',['cosce di pollo','patate','carote','rosmarino']],
+  ['Frittata di zucchine al forno con pane',['uova','zucchine','parmigiano','pane']],
+  ['Polpette al sugo con piselli (Bimby)',['carne macinata','uova','pangrattato','passata di pomodoro','piselli','pane']],
+  ['Minestrone con pasta e fagioli (Bimby)',['verdure per minestrone','fagioli borlotti','pasta corta','parmigiano']],
+  ['Petto di pollo con riso e verdure',['petto di pollo','riso','zucchine','carote']],
+  ['Salmone al forno con patate e fagiolini',['salmone','patate','fagiolini','limone']],
+  ['Pizza con verdure',['impasto per pizza pronto','mozzarella','passata di pomodoro','zucchine']],
   ['Pasta ricotta e spinaci',['pasta','ricotta','spinaci','parmigiano']],
   ['Pasta e lenticchie (Bimby)',['pasta corta','lenticchie','carota','sedano','cipolla']],
-  ['Tacchino al limone con carote',['fettine di tacchino','limone','carote']],
-  ['Orata al forno',['orata','limone','patate']],
-  ['Merluzzo al forno con patate',['filetti di merluzzo','patate','limone']],
-  ['Uova strapazzate e spinaci',['uova','spinaci']],
-  ['Tortellini in brodo',['tortellini','brodo di carne','parmigiano']],
-  ['Pasta con zucchine',['pasta','zucchine','parmigiano']],
-  ['Risotto ai piselli (Bimby)',['riso','piselli','cipolla','brodo vegetale','parmigiano']],
-  ['Hamburger al forno con zucchine',['hamburger','zucchine']],
-  ['Vellutata di carote e patate (Bimby)',['carote','patate']]
+  ['Tacchino al limone con riso e carote',['fettine di tacchino','limone','riso','carote']],
+  ['Orata al forno con patate e pomodorini',['orata','patate','pomodorini','limone']],
+  ['Merluzzo al forno con patate e zucchine',['filetti di merluzzo','patate','zucchine','limone']],
+  ['Uova strapazzate con spinaci e pane',['uova','spinaci','pane']],
+  ['Tortellini in brodo con verdure',['tortellini','brodo di carne','carote','zucchine','parmigiano']],
+  ['Pasta zucchine e uova',['pasta','zucchine','uova','parmigiano']],
+  ['Risotto piselli e prosciutto cotto (Bimby)',['riso','piselli','prosciutto cotto','cipolla','brodo vegetale','parmigiano']],
+  ['Hamburger al forno con patate e zucchine',['hamburger','patate','zucchine']],
+  ['Crema di lenticchie rosse e carote (Bimby) con crostini',['lenticchie rosse decorticate','carote','patate','pane']],
+  ['Risotto zucca e ceci (Bimby)',['riso','zucca','ceci','cipolla','brodo vegetale','parmigiano']]
 ];
 function seed(){
   const have = new Set(S.piatti.map(p => p.nome.toLowerCase()));
   let n = 0;
-  for (const [nome, ingredienti] of ESEMPI) if (!have.has(nome.toLowerCase())){ S.piatti.push({ id: uid(), nome, tipo: tipoDi({ nome }), ingredienti: [...ingredienti] }); n++; }
+  for (const [nome, ingredienti] of ESEMPI) if (!have.has(nome.toLowerCase())){ S.piatti.push({ id: uid(), nome, tipo: 'unico', ingredienti: [...ingredienti] }); n++; }
   commit(); toast(`${n} piatti aggiunti: modificali come preferite`);
 }
 
