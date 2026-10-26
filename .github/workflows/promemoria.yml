@@ -1,0 +1,30 @@
+name: Promemoria parcheggio
+
+on:
+  schedule:
+    # ogni 10 minuti tra le 20:00 e le 21:59 UTC (le 22:30 di Roma, con ora legale o solare), da lunedì a mercoledì
+    - cron: '*/10 20-21 * * 1,2,3'
+  workflow_dispatch:
+    inputs:
+      prova:
+        description: 'Manda una notifica di prova adesso'
+        type: boolean
+        default: true
+
+concurrency: promemoria
+
+jobs:
+  avvisa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-save --no-audit --no-fund firebase-admin@12.7.0
+      - run: node scripts/promemoria.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PROVA: ${{ inputs.prova && '1' || '0' }}
+          APP_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
