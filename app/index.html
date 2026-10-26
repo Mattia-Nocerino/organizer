@@ -124,6 +124,13 @@ p{margin:0 0 10px}
 .check input{width:20px;height:20px;margin-top:2px;accent-color:var(--primary);flex:none}
 .check .from{display:block;font-size:.8rem;color:var(--muted)}
 .check.done .name{text-decoration:line-through;color:var(--muted)}
+.orari{background:var(--surface);border-radius:12px;padding:10px 14px;margin:12px 0 0;font-size:.95rem}
+.orari strong{font-weight:600}
+.orday{appearance:none;width:100%;display:flex;justify-content:space-between;align-items:baseline;gap:10px;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:11px 14px;cursor:pointer;font-size:.95rem}
+.orday:last-child{border-bottom:0}
+.orday.today{background:var(--primary-soft)}
+.orday .dn{font-weight:600;white-space:nowrap}
+.orday .dn span{font-weight:400;color:var(--muted);font-size:.85rem}
 .facbtn{appearance:none;border:0;background:none;padding:0;text-align:left;flex:1;min-width:0;cursor:pointer;color:inherit}
 .box{background:var(--surface);border-radius:14px;overflow:hidden}
 .addrow{display:flex;gap:8px;margin:10px 0}
@@ -151,8 +158,8 @@ dialog::backdrop{background:rgba(10,20,18,.45)}
 
 /* nav */
 nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:20}
-nav.tabs .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr)}
-nav.tabs a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 2px 10px;color:var(--muted);text-decoration:none;font-size:.75rem;font-weight:500}
+nav.tabs .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(7,1fr)}
+nav.tabs a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 2px 10px;color:var(--muted);text-decoration:none;font-size:.7rem;font-weight:500}
 nav.tabs a svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 nav.tabs a[aria-current="page"]{color:var(--primary)}
 nav.tabs a .dot{width:6px;height:6px;border-radius:50%;background:var(--late);position:absolute;margin-left:16px;margin-top:-2px}
@@ -179,6 +186,7 @@ nav.tabs a .ic{position:relative;display:flex}
     <a href="#menu" data-tab="menu"><span class="ic"><svg viewBox="0 0 24 24"><path d="M7 3v8a2 2 0 0 0 2 2v8M11 3v6M3 3v6a4 4 0 0 0 4 4M17 21V3c2.5 1 4 4 4 8h-4"/></svg></span>Menù</a>
     <a href="#spesa" data-tab="spesa"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 1.9-1.5L21 8H6"/><circle cx="10" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/></svg></span>Spesa</a>
     <a href="#casa" data-tab="casa"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/></svg></span>Casa</a>
+    <a href="#orari" data-tab="orari"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></svg></span>Orari</a>
     <a href="#scadenze" data-tab="scadenze"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span class="dot" id="dotScad" hidden></span></span>Scadenze</a>
     <a href="#impegni" data-tab="impegni"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>Impegni</a>
   </div>
@@ -220,7 +228,7 @@ const RIC = [[0,'Una volta sola'],[1,'Ogni mese'],[3,'Ogni 3 mesi'],[6,'Ogni 6 m
 const ricLabel = n => (RIC.find(r => r[0] === Number(n)) || RIC[0])[1];
 
 /* ---------- stato ---------- */
-const EMPTY = () => ({ piatti: [], piani: {}, spesaExtra: [], spesaSpunte: {}, scadenze: [], impegni: [], faccende: [], divieti: [] });
+const EMPTY = () => ({ piatti: [], piani: {}, spesaExtra: [], spesaSpunte: {}, scadenze: [], impegni: [], faccende: [], divieti: [], orari: {} });
 function norm(o){
   const e = EMPTY(); o = (o && typeof o === 'object') ? o : {};
   for (const k in e) if (o[k] !== undefined && Array.isArray(o[k]) === Array.isArray(e[k]) && typeof o[k] === 'object' && o[k] !== null) e[k] = o[k];
@@ -229,7 +237,7 @@ function norm(o){
 const LS = 'casa-organizer-v1';
 let S = EMPTY();
 try { const r = localStorage.getItem(LS); if (r) S = norm(JSON.parse(r)); } catch (e) {}
-const hasContent = s => s.piatti.length || s.faccende.length || s.divieti.length || s.scadenze.length || s.impegni.length || Object.keys(s.piani).length;
+const hasContent = s => s.piatti.length || Object.keys(s.orari).length || s.faccende.length || s.divieti.length || s.scadenze.length || s.impegni.length || Object.keys(s.piani).length;
 
 /* ---------- salvataggio e sincronizzazione ---------- */
 let ref = null, timer = null, saving = false, again = false, readOnly = false;
@@ -261,6 +269,7 @@ function pruneOld(){
   const limit = iso(addDays(monday(today()), -28));
   for (const k of Object.keys(S.piani)) if (k < limit) delete S.piani[k];
   for (const k of Object.keys(S.spesaSpunte)) if (k < limit) delete S.spesaSpunte[k];
+  for (const k of Object.keys(S.orari)) if (k < limit) delete S.orari[k];
 }
 // cloud.js collega qui il documento dell'utente dopo l'accesso: { set(obj), onSnapshot(next, err) }
 let unsub = null;
@@ -362,7 +371,7 @@ function scadGcal(s){
 
 /* ---------- viste ---------- */
 let view = 'oggi', wOff = 0, showPast = false;
-const VIEWS = ['oggi','menu','spesa','casa','scadenze','impegni'];
+const VIEWS = ['oggi','menu','spesa','casa','orari','scadenze','impegni'];
 
 function vOggi(){
   const t = today(), tm = addDays(t, 1);
@@ -377,6 +386,8 @@ function vOggi(){
       <span class="dish ${v ? '' : 'empty'}">${v ? esc(slotLabel(v)) : 'Da decidere'}</span></button>`;
   let h = `<p class="date">${cap(fmt(t,{weekday:'long', day:'numeric', month:'long'}))}</p>
     <div class="meals">${meal('A pranzo', p, 'p')}${meal('A cena', c, 'c')}</div>`;
+  const oT = turnoTxt(turnoDi(t)), oD = turnoTxt(turnoDi(tm));
+  if (oT || oD) h += `<a class="orari" href="#orari" style="display:block;color:inherit;text-decoration:none">${CHI} oggi: <strong>${esc(oT || 'non segnato')}</strong>${oD ? `<br><span class="muted small">Domani: ${esc(oD)}</span>` : ''}</a>`;
   const divO = S.divieti.filter(r => divietoIl(r, t)), divD = S.divieti.filter(r => divietoIl(r, tm));
   if (divO.length || divD.length) h += `<ul class="list" style="margin-top:14px">${divO.map(r => `<li class="item late"><div class="title">Oggi divieto di sosta</div><div class="meta">${esc(r.via)}</div></li>`).join('')}${divD.map(r => `<li class="item soon"><div class="title">Stasera sposta la macchina</div><div class="meta">Domani divieto di sosta in ${esc(r.via)}</div></li>`).join('')}</ul>`;
   if (pT || cT) h += `<p class="tomorrow">Domani: <strong>${esc(slotLabel(pT) || '–')}</strong> a pranzo, <strong>${esc(slotLabel(cT) || '–')}</strong> a cena</p>`;
@@ -475,6 +486,34 @@ function divItem(r){
     <div class="row-actions"><button class="btn small ghost needs-write" data-act="div" data-id="${r.id}">Modifica</button></div></li>`;
 }
 
+/* ---------- orari di lavoro ---------- */
+const CHI = 'Valentina';
+const turnoDi = d => (S.orari[iso(monday(d))] || {})[dayIdx(d)] || null;
+const fascia = f => !f ? '' : f[0] && f[1] ? `${f[0]}–${f[1]}` : f[0] ? `dalle ${f[0]}` : f[1] ? `fino alle ${f[1]}` : '';
+const turnoTxt = o => !o ? '' : o.riposo ? 'riposo' : [fascia(o.m), fascia(o.p)].filter(Boolean).join(' e ');
+function vOrari(){
+  const start = addDays(monday(today()), 7*wOff); const wk = iso(start); const tIso = iso(today());
+  const week = S.orari[wk] || {};
+  let h = `<div class="weeknav">
+    <button class="iconbtn" data-act="wk" data-d="-1" aria-label="Settimana precedente" ${wOff <= -1 ? 'disabled' : ''}>‹</button>
+    <h2>Orari di ${CHI}<br><span class="muted small">${wOff === 0 ? 'questa settimana' : wOff === 1 ? 'prossima settimana' : wOff === 2 ? 'tra due settimane' : 'settimana scorsa'}, dal ${fmt(start,{day:'numeric', month:'long'})}</span></h2>
+    <button class="iconbtn" data-act="wk" data-d="1" aria-label="Settimana successiva" ${wOff >= 2 ? 'disabled' : ''}>›</button></div>
+    <div class="bar needs-write"><button class="btn small" data-act="copiaOrari">Copia la settimana prima</button><button class="btn small ghost" data-act="svuotaOrari">Svuota settimana</button></div>
+    <div class="box">`;
+  for (let i = 0; i < 7; i++){
+    const d = addDays(start, i), o = week[i];
+    h += `<button class="orday ${iso(d) === tIso ? 'today' : ''}" data-act="turno" data-wk="${wk}" data-i="${i}"><span class="dn">${GIORNI[i]} <span>${d.getDate()} ${fmt(d,{month:'short'})}</span></span><span class="${o ? '' : 'muted'}">${o ? esc(cap(turnoTxt(o))) : 'Da segnare'}</span></button>`;
+  }
+  return h + `</div><p class="muted small" style="margin-top:10px">Tocca un giorno per segnare quando attacca e stacca, mattina e pomeriggio. Gli orari di oggi e domani compaiono in Oggi.</p>`;
+}
+function copiaOrari(){
+  const wk = wkKey(wOff), prev = iso(addDays(parse(wk), -7));
+  if (!S.orari[prev] || !Object.keys(S.orari[prev]).length){ toast('La settimana prima è vuota'); return; }
+  const fai = () => { S.orari[wk] = JSON.parse(JSON.stringify(S.orari[prev])); commit(); toast('Orari copiati'); };
+  if (S.orari[wk] && Object.keys(S.orari[wk]).length) ask('Sostituire gli orari di questa settimana con quelli della settimana prima?', 'Sostituisci').then(ok => { if (ok) fai(); });
+  else fai();
+}
+
 /* ---------- faccende di casa ---------- */
 const FREQ = [[1,'Ogni giorno'],[2,'Ogni 2 giorni'],[3,'Ogni 3 giorni'],[7,'Ogni settimana'],[14,'Ogni 2 settimane'],[30,'Ogni mese']];
 const freqLabel = n => (FREQ.find(f => f[0] === Number(n)) || [0, `Ogni ${n} giorni`])[1];
@@ -534,7 +573,7 @@ function vImpegni(){
 }
 
 function render(){
-  $('#view').innerHTML = { oggi: vOggi, menu: vMenu, spesa: vSpesa, casa: vCasa, scadenze: vScadenze, impegni: vImpegni }[view]();
+  $('#view').innerHTML = { oggi: vOggi, menu: vMenu, spesa: vSpesa, casa: vCasa, orari: vOrari, scadenze: vScadenze, impegni: vImpegni }[view]();
   document.querySelectorAll('nav.tabs a').forEach(a => { if (a.dataset.tab === view) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
   $('#dotScad').hidden = !S.scadenze.some(s => scadStato(s).cls !== 'ok') && !S.divieti.some(r => divietoIl(r, today()) || divietoIl(r, addDays(today(), 1)));
 }
@@ -617,6 +656,31 @@ function facDlg(id){
     if (f) d.querySelector('#del').addEventListener('click', async () => {
       if (!await ask(`Eliminare “${f.nome}”?`, 'Elimina')) return;
       S.faccende = S.faccende.filter(x => x.id !== f.id); closeDlg(); commit(); toast('Faccenda eliminata');
+    });
+  });
+}
+
+/* ---------- dialog: orario del giorno ---------- */
+function turnoDlg(wk, i){
+  const o = (S.orari[wk] || {})[i] || {}; const d = addDays(parse(wk), Number(i));
+  const t = (id, v) => `<label class="f">${id.endsWith('0') ? 'Attacca' : 'Stacca'}<input type="time" id="${id}" value="${v || ''}"></label>`;
+  openDlg(`<h2>${GIORNI[i]} ${d.getDate()} ${fmt(d,{month:'long'})}</h2>
+    <p class="muted small" style="margin:0 0 4px">Mattina</p><div class="two">${t('m0', o.m && o.m[0])}${t('m1', o.m && o.m[1])}</div>
+    <p class="muted small" style="margin:0 0 4px">Pomeriggio</p><div class="two">${t('p0', o.p && o.p[0])}${t('p1', o.p && o.p[1])}</div>
+    <div class="dlg-actions"><button type="button" class="btn ghost" id="rip">Riposo</button><button type="button" class="btn ghost" id="clr">Togli</button><span class="spacer"></span>
+    <button type="button" class="btn ghost" id="cls">Annulla</button><button type="button" class="btn" id="ok">Salva</button></div>`, dd => {
+    const v = id => dd.querySelector('#' + id).value;
+    const put = val => {
+      const w = S.orari[wk] = S.orari[wk] || {};
+      if (val) w[i] = val; else { delete w[i]; if (!Object.keys(w).length) delete S.orari[wk]; }
+      closeDlg(); commit();
+    };
+    dd.querySelector('#cls').addEventListener('click', closeDlg);
+    dd.querySelector('#rip').addEventListener('click', () => put({ riposo: true }));
+    dd.querySelector('#clr').addEventListener('click', () => put(null));
+    dd.querySelector('#ok').addEventListener('click', () => {
+      const m = [v('m0'), v('m1')], p = [v('p0'), v('p1')], has = a => a[0] || a[1];
+      put(has(m) || has(p) ? { ...(has(m) ? { m } : {}), ...(has(p) ? { p } : {}) } : null);
     });
   });
 }
@@ -798,6 +862,9 @@ document.addEventListener('click', e => {
     case 'clearExtra': S.spesaExtra = S.spesaExtra.filter(x => !x.f); commit(); break;
     case 'fac': facDlg(b.dataset.id); break;
     case 'div': divDlg(b.dataset.id); break;
+    case 'turno': turnoDlg(b.dataset.wk, b.dataset.i); break;
+    case 'copiaOrari': copiaOrari(); break;
+    case 'svuotaOrari': { const wk = wkKey(wOff); ask('Togliere tutti gli orari di questa settimana?', 'Svuota').then(ok => { if (ok){ delete S.orari[wk]; commit(); } }); break; }
     case 'notifiche': if (window.casaCloud) window.casaCloud.attivaNotifiche(); else toast('Accedi per attivare le notifiche'); break;
     case 'scad': scadDlg(b.dataset.id); break;
     case 'imp': impDlg(b.dataset.id); break;
