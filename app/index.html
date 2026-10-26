@@ -152,13 +152,20 @@ dialog::backdrop{background:rgba(10,20,18,.45)}
 .dlg-actions .spacer{flex:1}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
 .chip{appearance:none;border:0;background:var(--primary-soft);color:var(--ink);padding:5px 12px;border-radius:999px;font-size:.85rem;cursor:pointer}
+.chip input{accent-color:var(--primary);margin:0 4px 0 0;vertical-align:-2px}
+.arow{appearance:none;width:100%;display:grid;grid-template-columns:76px 1fr;gap:10px;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:10px 14px;cursor:pointer;color:inherit;font-size:.95rem}
+.arow:last-child{border-bottom:0}
+.arow .q{color:var(--muted);font-size:.85rem;line-height:1.3}
+.arow .q b{display:block;color:var(--ink);font-weight:600;font-size:.9rem}
+.arow .t{font-weight:500}
+.arow .m{display:block;color:var(--muted);font-size:.82rem}
 .pick{list-style:none;margin:6px 0 0;padding:0;max-height:42vh;overflow:auto;border-top:1px solid var(--line)}
 .pick li button{appearance:none;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:10px 4px;cursor:pointer}
 .pick li button.cur{font-weight:600;color:var(--primary)}
 
 /* nav */
 nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:20}
-nav.tabs .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(7,1fr)}
+nav.tabs .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr)}
 nav.tabs a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:9px 2px 10px;color:var(--muted);text-decoration:none;font-size:.7rem;font-weight:500}
 nav.tabs a svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 nav.tabs a[aria-current="page"]{color:var(--primary)}
@@ -187,8 +194,7 @@ nav.tabs a .ic{position:relative;display:flex}
     <a href="#spesa" data-tab="spesa"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.4 11.2a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 1.9-1.5L21 8H6"/><circle cx="10" cy="20" r="1.3"/><circle cx="17" cy="20" r="1.3"/></svg></span>Spesa</a>
     <a href="#casa" data-tab="casa"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-5h4v5"/></svg></span>Casa</a>
     <a href="#orari" data-tab="orari"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></svg></span>Orari</a>
-    <a href="#scadenze" data-tab="scadenze"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span class="dot" id="dotScad" hidden></span></span>Scadenze</a>
-    <a href="#impegni" data-tab="impegni"><span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>Impegni</a>
+    <a href="#agenda" data-tab="agenda"><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span class="dot" id="dotAg" hidden></span></span>Agenda</a>
   </div>
 </nav>
 
@@ -228,16 +234,19 @@ const RIC = [[0,'Una volta sola'],[1,'Ogni mese'],[3,'Ogni 3 mesi'],[6,'Ogni 6 m
 const ricLabel = n => (RIC.find(r => r[0] === Number(n)) || RIC[0])[1];
 
 /* ---------- stato ---------- */
-const EMPTY = () => ({ piatti: [], piani: {}, spesaExtra: [], spesaSpunte: {}, scadenze: [], impegni: [], faccende: [], divieti: [], orari: {} });
+const EMPTY = () => ({ piatti: [], piani: {}, spesaExtra: [], spesaSpunte: {}, scadenze: [], impegni: [], faccende: [], serali: [], orari: {} });
 function norm(o){
   const e = EMPTY(); o = (o && typeof o === 'object') ? o : {};
   for (const k in e) if (o[k] !== undefined && Array.isArray(o[k]) === Array.isArray(e[k]) && typeof o[k] === 'object' && o[k] !== null) e[k] = o[k];
+  // vecchio formato: i divieti di sosta diventano avvisi della sera prima
+  if (Array.isArray(o.divieti) && o.divieti.length && !e.serali.length)
+    e.serali = o.divieti.map(r => ({ id: r.id, titolo: `Sposta la macchina da ${r.via}`, giorni: [Number(r.giorno)], parita: r.ord, ora: '22:30', nota: '' }));
   return e;
 }
 const LS = 'casa-organizer-v1';
 let S = EMPTY();
 try { const r = localStorage.getItem(LS); if (r) S = norm(JSON.parse(r)); } catch (e) {}
-const hasContent = s => s.piatti.length || Object.keys(s.orari).length || s.faccende.length || s.divieti.length || s.scadenze.length || s.impegni.length || Object.keys(s.piani).length;
+const hasContent = s => s.piatti.length || Object.keys(s.orari).length || s.faccende.length || s.serali.length || s.scadenze.length || s.impegni.length || Object.keys(s.piani).length;
 
 /* ---------- salvataggio e sincronizzazione ---------- */
 let ref = null, timer = null, saving = false, again = false, readOnly = false;
@@ -371,7 +380,7 @@ function scadGcal(s){
 
 /* ---------- viste ---------- */
 let view = 'oggi', wOff = 0, showPast = false;
-const VIEWS = ['oggi','menu','spesa','casa','orari','scadenze','impegni'];
+const VIEWS = ['oggi','menu','spesa','casa','orari','agenda'];
 
 function vOggi(){
   const t = today(), tm = addDays(t, 1);
@@ -388,8 +397,8 @@ function vOggi(){
     <div class="meals">${meal('A pranzo', p, 'p')}${meal('A cena', c, 'c')}</div>`;
   const oT = turnoTxt(turnoDi(t)), oD = turnoTxt(turnoDi(tm));
   if (oT || oD) h += `<a class="orari" href="#orari" style="display:block;color:inherit;text-decoration:none">${CHI} oggi: <strong>${esc(oT || 'non segnato')}</strong>${oD ? `<br><span class="muted small">Domani: ${esc(oD)}</span>` : ''}</a>`;
-  const divO = S.divieti.filter(r => divietoIl(r, t)), divD = S.divieti.filter(r => divietoIl(r, tm));
-  if (divO.length || divD.length) h += `<ul class="list" style="margin-top:14px">${divO.map(r => `<li class="item late"><div class="title">Oggi divieto di sosta</div><div class="meta">${esc(r.via)}</div></li>`).join('')}${divD.map(r => `<li class="item soon"><div class="title">Stasera sposta la macchina</div><div class="meta">Domani divieto di sosta in ${esc(r.via)}</div></li>`).join('')}</ul>`;
+  const sera = S.serali.filter(r => seraleIl(r, tm)).sort((a,b) => (a.ora || '').localeCompare(b.ora || ''));
+  if (sera.length) h += `<ul class="list" style="margin-top:14px">${sera.map(r => `<li class="item soon"><div class="title">Stasera alle ${esc(r.ora || '21:30')}: ${esc(r.titolo)}</div>${r.nota ? `<div class="meta">${esc(r.nota)}</div>` : ''}</li>`).join('')}</ul>`;
   if (pT || cT) h += `<p class="tomorrow">Domani: <strong>${esc(slotLabel(pT) || '–')}</strong> a pranzo, <strong>${esc(slotLabel(cT) || '–')}</strong> a cena</p>`;
 
   if (!hasContent(S)){
@@ -409,7 +418,7 @@ function vOggi(){
 
   h += `<h2>Da tenere d’occhio</h2>`;
   h += allerta.length ? `<ul class="list">${allerta.map(scadItem).join('')}</ul>`
-    : `<p class="muted">Nessuna scadenza in arrivo. ${S.scadenze.length ? '' : '<a href="#scadenze">Aggiungi le scadenze fisse</a> per non doverle ricordare.'}</p>`;
+    : `<p class="muted">Nessuna scadenza in arrivo. ${S.scadenze.length ? '' : '<a href="#agenda">Aggiungi le scadenze fisse</a> per non doverle ricordare.'}</p>`;
 
   h += `<h2>Prossimi 7 giorni</h2>`;
   h += prossimi.length ? `<ul class="list">${prossimi.map(impItem).join('')}</ul>` : `<p class="muted">Nessun impegno in calendario.</p>`;
@@ -473,17 +482,32 @@ function scadItem(s){
     <a class="btn small ghost" href="${scadGcal(s)}" target="_blank" rel="noopener">Aggiungi al calendario</a>
     <button class="btn small ghost needs-write" data-act="scad" data-id="${s.id}">Modifica</button></div></li>`;
 }
-/* ---------- divieti di sosta (pulizia strade) ---------- */
-const ORD_LAB = { pari: 'con data pari', dispari: 'con data dispari' };
-const divietoIl = (r, d) => dayIdx(d) === Number(r.giorno) && (d.getDate() % 2 === 0) === (r.ord === 'pari');
-function prossimoDivieto(r){ for (let i = 0; i < 70; i++){ const d = addDays(today(), i); if (divietoIl(r, d)) return d; } return today(); }
-function divItem(r){
-  const d = prossimoDivieto(r), dd = diffDays(d, today());
-  const st = dd === 0 ? 'late' : dd === 1 ? 'soon' : 'ok';
-  return `<li class="item ${st}"><div class="title">${esc(r.via)}</div>
-    <div class="meta">${GIORNI[r.giorno]} ${ORD_LAB[r.ord]}</div>
-    <span class="tag ${st}">${dd === 0 ? 'Oggi' : dd === 1 ? 'Domani: stasera sposta la macchina' : 'Prossimo: ' + fmt(d,{weekday:'long', day:'numeric', month:'long'})}</span>
-    <div class="row-actions"><button class="btn small ghost needs-write" data-act="div" data-id="${r.id}">Modifica</button></div></li>`;
+/* ---------- avvisi della sera prima (raccolta differenziata, divieti di sosta) ---------- */
+const IS_APP = true;
+const PARITA = { '': '', pari: ', con data pari', dispari: ', con data dispari' };
+// r.giorni: giorni della raccolta o del divieto (0 = lunedì); l'avviso è la sera prima, all'ora r.ora
+const seraleIl = (r, d) => (r.giorni || []).includes(dayIdx(d)) && (!r.parita || (d.getDate() % 2 === 0) === (r.parita === 'pari'));
+function prossimoSerale(r, da){ for (let i = 0; i < 70; i++){ const d = addDays(da, i); if (seraleIl(r, d)) return d; } return null; }
+const elenco = a => a.length > 1 ? a.slice(0, -1).join(', ') + ' e ' + a[a.length - 1] : (a[0] || '');
+const regolaTxt = r => cap(elenco([...(r.giorni || [])].sort((a,b) => a - b).map(i => GIORNI[i].toLowerCase()))) + PARITA[r.parita || ''] + `; avviso la sera prima alle ${r.ora || '21:30'}`;
+function seraleGcal(r){
+  const by = (r.giorni || []).map(g => ['MO','TU','WE','TH','FR','SA','SU'][(Number(g) + 6) % 7]).join(',');
+  let recur = `FREQ=WEEKLY;BYDAY=${by}`;
+  if (r.parita){ // stesso schema spostato di un giorno: il giorno 1 diventa l'ultimo del mese prima
+    const days = new Set(); for (let d = r.parita === 'pari' ? 2 : 1; d <= 31; d += 2) days.add(d === 1 ? -1 : d - 1);
+    recur = `FREQ=MONTHLY;BYDAY=${by};BYMONTHDAY=${[...days].join(',')}`;
+  }
+  const prox = prossimoSerale(r, addDays(today(), 1)) || addDays(today(), 1);
+  return gcal({ text: r.titolo, date: addDays(prox, -1), time: r.ora || '21:30', details: r.nota || '', recur });
+}
+function serItem(r){
+  const d = prossimoSerale(r, addDays(today(), 1)), dd = d ? diffDays(d, today()) : 99;
+  const st = dd === 1 ? 'soon' : 'ok';
+  return `<li class="item ${st}"><div class="title">${esc(r.titolo)}</div><div class="meta">${esc(regolaTxt(r))}</div>
+    ${d ? `<span class="tag ${st}">${dd === 1 ? 'Stasera' : 'Prossimo: la sera di ' + fmt(addDays(d, -1),{weekday:'long', day:'numeric', month:'long'})}</span>` : ''}
+    ${r.nota ? `<div class="meta">${esc(r.nota)}</div>` : ''}
+    <div class="row-actions">${IS_APP ? '' : `<a class="btn small ghost" href="${seraleGcal(r)}" target="_blank" rel="noopener">Promemoria nel calendario</a>`}
+    <button class="btn small ghost needs-write" data-act="ser" data-id="${r.id}">Modifica</button></div></li>`;
 }
 
 /* ---------- orari di lavoro ---------- */
@@ -539,16 +563,6 @@ function vCasa(){
   return h;
 }
 
-function vScadenze(){
-  let h = `<h2>Scadenze</h2><p class="muted small">Inseriscile una volta: quando segni “Fatta”, quelle ricorrenti passano da sole alla data successiva. Il colore cambia quando entra il preavviso.</p>
-    <div class="bar needs-write"><button class="btn" data-act="scad">Aggiungi scadenza</button></div>`;
-  h += S.scadenze.length ? `<ul class="list">${scadOrdinate().map(scadItem).join('')}</ul>` : `<p class="muted">Nessuna scadenza. Comincia da quelle dell’auto, della casa e dai compleanni.</p>`;
-  h += `<h2>Divieti di sosta</h2><p class="muted small">La sera prima compaiono in Oggi e alle 22:30 arriva una notifica sui dispositivi dove l’hai attivata.</p>
-    <div class="bar needs-write"><button class="btn small" data-act="div">Aggiungi divieto</button><button class="btn small ghost" data-act="notifiche">Attiva le notifiche qui</button></div>`;
-  if (S.divieti.length) h += `<ul class="list">${[...S.divieti].sort((a,b) => prossimoDivieto(a) - prossimoDivieto(b)).map(divItem).join('')}</ul>`;
-  return h;
-}
-
 function impItem(i){
   const d = parse(i.data); const dd = diffDays(d, today());
   const quando = dd === 0 ? 'Oggi' : dd === 1 ? 'Domani' : cap(fmt(d,{weekday:'long', day:'numeric', month:'long'}));
@@ -558,28 +572,47 @@ function impItem(i){
     <div class="row-actions"><a class="btn small ghost" href="${gcal({ text: i.titolo, date: d, time: i.ora, details: [i.chi, i.note].filter(Boolean).join('\n') })}" target="_blank" rel="noopener">Aggiungi al calendario</a>
     <button class="btn small ghost needs-write" data-act="imp" data-id="${i.id}">Modifica</button></div></li>`;
 }
-function vImpegni(){
-  const t = iso(today());
-  const futuri = impegniDa(t); const passati = S.impegni.filter(i => i.data < t).sort((a,b) => b.data.localeCompare(a.data));
-  let h = `<h2>Impegni</h2><p class="muted small">Visite, colloqui a scuola, feste, appuntamenti. Quelli dei prossimi 7 giorni compaiono anche in Oggi.</p>
-    <div class="bar needs-write"><button class="btn" data-act="imp">Aggiungi impegno</button></div>`;
+function vAgenda(){
+  const t = today(), tIso = iso(t), fino = iso(addDays(t, 7));
+  const g = d => cap(fmt(parse(d), {weekday:'short', day:'numeric'}));
+  // in arrivo: tutto quello che c'è da fare nei prossimi 7 giorni, in ordine
+  const ev = [];
+  for (const i of impegniDa(tIso, fino)) ev.push({ d: i.data, o: i.ora || '', act: 'imp', id: i.id, t: i.titolo, m: i.note || i.chi || '' });
+  for (const s of S.scadenze){ const st = scadStato(s); if (s.data <= fino) ev.push({ d: s.data, o: '', act: 'scad', id: s.id, t: s.nome, m: 'Scadenza: ' + st.txt.toLowerCase() }); }
+  for (const r of S.serali) for (let i = 0; i < 7; i++){
+    const sera = addDays(t, i); if (seraleIl(r, addDays(sera, 1))) ev.push({ d: iso(sera), o: r.ora || '21:30', act: 'ser', id: r.id, t: r.titolo, m: 'la sera prima' });
+  }
+  ev.sort((a,b) => (a.d + a.o).localeCompare(b.d + b.o));
+  let h = `<h2>In arrivo</h2>`;
+  h += ev.length ? `<div class="box">${ev.map(e => `<button class="arow" data-act="${e.act}" data-id="${e.id}"><span class="q"><b>${e.d === tIso ? 'Oggi' : esc(g(e.d))}</b>${esc(e.o)}</span><span><span class="t">${esc(e.t)}</span>${e.m ? `<span class="m">${esc(e.m)}</span>` : ''}</span></button>`).join('')}</div>`
+    : `<p class="muted">Niente nei prossimi 7 giorni.</p>`;
+
+  const futuri = impegniDa(tIso); const passati = S.impegni.filter(i => i.data < tIso).sort((a,b) => b.data.localeCompare(a.data));
+  h += `<h2>Impegni</h2><p class="muted small">Visite, feste, appuntamenti: quelli che capitano una volta.</p>
+    <div class="bar needs-write"><button class="btn small" data-act="imp">Aggiungi impegno</button></div>`;
   h += futuri.length ? `<ul class="list">${futuri.map(impItem).join('')}</ul>` : `<p class="muted">Nessun impegno in programma.</p>`;
   if (passati.length){
     h += `<div class="bar"><button class="btn small ghost" data-act="past">${showPast ? 'Nascondi' : 'Mostra'} i passati (${passati.length})</button>
       ${showPast ? '<button class="btn small danger needs-write" data-act="clearPast">Elimina i passati</button>' : ''}</div>`;
     if (showPast) h += `<ul class="list">${passati.map(impItem).join('')}</ul>`;
   }
+
+  h += `<h2>Ricorrenti</h2><p class="muted small">Le <strong>scadenze</strong> (bollo, assicurazione, compleanni) passano da sole alla data dopo quando segni “Fatta”. Gli <strong>avvisi della sera prima</strong> (raccolta differenziata, divieti di sosta) compaiono in Oggi${IS_APP ? ' e arrivano come notifica' : ''}.</p>
+    <div class="bar needs-write"><button class="btn small" data-act="ser">Aggiungi avviso serale</button><button class="btn small ghost" data-act="scad">Aggiungi scadenza</button>${IS_APP ? '<button class="btn small ghost" data-act="notifiche">Attiva le notifiche qui</button>' : ''}</div>`;
+  const ser = [...S.serali].sort((a,b) => (prossimoSerale(a, addDays(t,1)) || 0) - (prossimoSerale(b, addDays(t,1)) || 0));
+  if (ser.length || S.scadenze.length) h += `<ul class="list">${ser.map(serItem).join('')}${scadOrdinate().map(scadItem).join('')}</ul>`;
+  else h += `<p class="muted">Nessuna ricorrenza.</p>`;
   return h;
 }
 
 function render(){
-  $('#view').innerHTML = { oggi: vOggi, menu: vMenu, spesa: vSpesa, casa: vCasa, orari: vOrari, scadenze: vScadenze, impegni: vImpegni }[view]();
+  $('#view').innerHTML = { oggi: vOggi, menu: vMenu, spesa: vSpesa, casa: vCasa, orari: vOrari, agenda: vAgenda }[view]();
   document.querySelectorAll('nav.tabs a').forEach(a => { if (a.dataset.tab === view) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
-  $('#dotScad').hidden = !S.scadenze.some(s => scadStato(s).cls !== 'ok') && !S.divieti.some(r => divietoIl(r, today()) || divietoIl(r, addDays(today(), 1)));
+  $('#dotAg').hidden = !S.scadenze.some(s => scadStato(s).cls !== 'ok') && !S.serali.some(r => seraleIl(r, addDays(today(), 1)));
 }
 function route(){
   const h = (location.hash || '').replace('#','');
-  const v = VIEWS.includes(h) ? h : 'oggi';
+  const v = VIEWS.includes(h) ? h : ['scadenze','impegni'].includes(h) ? 'agenda' : 'oggi';
   if (v !== view){ view = v; window.scrollTo(0,0); }
   render();
 }
@@ -685,26 +718,32 @@ function turnoDlg(wk, i){
   });
 }
 
-/* ---------- dialog: divieto di sosta ---------- */
-function divDlg(id){
-  const r = id ? S.divieti.find(x => x.id === id) : null;
-  openDlg(`<h2>${r ? 'Modifica divieto' : 'Nuovo divieto di sosta'}</h2>
-    <label class="f">Dove<input type="text" id="n" value="${r ? esc(r.via) : ''}" placeholder="Via Roma, lato numeri pari"></label>
-    <div class="two"><label class="f">Giorno<select id="g">${GIORNI.map((g,i) => `<option value="${i}">${g}</option>`).join('')}</select></label>
-    <label class="f">Quali<select id="o"><option value="pari">Con data pari</option><option value="dispari">Con data dispari</option></select></label></div>
+/* ---------- dialog: avviso della sera prima ---------- */
+function serDlg(id){
+  const r = id ? S.serali.find(x => x.id === id) : null;
+  const g = new Set(r ? r.giorni : []);
+  openDlg(`<h2>${r ? 'Modifica avviso' : 'Nuovo avviso della sera prima'}</h2>
+    <label class="f">Cosa fare la sera prima<input type="text" id="n" value="${r ? esc(r.titolo) : ''}" placeholder="Metti fuori la plastica"></label>
+    <p class="muted small" style="margin:0">Giorno della raccolta o del divieto</p>
+    <div class="chips" id="gg">${GIORNI.map((x,i) => `<label class="chip"><input type="checkbox" value="${i}" ${g.has(i) ? 'checked' : ''}>${x.slice(0,3)}</label>`).join('')}</div>
+    <div class="two"><label class="f">Quali settimane<select id="pa"><option value="">Tutte</option><option value="pari">Solo data pari</option><option value="dispari">Solo data dispari</option></select></label>
+    <label class="f">Avviso alle<input type="time" id="o" value="${r ? esc(r.ora || '21:30') : '21:30'}"></label></div>
+    <label class="f">Nota (facoltativa)<input type="text" id="no" value="${r ? esc(r.nota || '') : ''}"></label>
     <div class="dlg-actions">${r ? '<button type="button" class="btn danger" id="del">Elimina</button>' : ''}<span class="spacer"></span>
     <button type="button" class="btn ghost" id="cls">Annulla</button><button type="button" class="btn" id="ok">Salva</button></div>`, d => {
-    d.querySelector('#g').value = String(r ? r.giorno : 1); d.querySelector('#o').value = r ? r.ord : 'pari';
+    d.querySelector('#pa').value = r ? (r.parita || '') : '';
     d.querySelector('#cls').addEventListener('click', closeDlg);
     d.querySelector('#ok').addEventListener('click', () => {
-      const via = d.querySelector('#n').value.trim(); if (!via){ d.querySelector('#n').focus(); return; }
-      const o = { via, giorno: Number(d.querySelector('#g').value), ord: d.querySelector('#o').value };
-      if (r) Object.assign(r, o); else S.divieti.push({ id: uid(), ...o });
-      closeDlg(); commit(); toast('Divieto salvato');
+      const titolo = d.querySelector('#n').value.trim(); if (!titolo){ d.querySelector('#n').focus(); return; }
+      const giorni = [...d.querySelectorAll('#gg input:checked')].map(x => Number(x.value));
+      if (!giorni.length){ toast('Scegli almeno un giorno'); return; }
+      const o = { titolo, giorni, parita: d.querySelector('#pa').value, ora: d.querySelector('#o').value || '21:30', nota: d.querySelector('#no').value.trim() };
+      if (r) Object.assign(r, o); else S.serali.push({ id: uid(), ...o });
+      closeDlg(); commit(); toast('Avviso salvato');
     });
     if (r) d.querySelector('#del').addEventListener('click', async () => {
-      if (!await ask(`Eliminare “${r.via}”?`, 'Elimina')) return;
-      S.divieti = S.divieti.filter(x => x.id !== r.id); closeDlg(); commit(); toast('Divieto eliminato');
+      if (!await ask(`Eliminare “${r.titolo}”?`, 'Elimina')) return;
+      S.serali = S.serali.filter(x => x.id !== r.id); closeDlg(); commit(); toast('Avviso eliminato');
     });
   });
 }
@@ -860,7 +899,7 @@ document.addEventListener('click', e => {
     case 'addExtra': addExtra(); break;
     case 'clearExtra': S.spesaExtra = S.spesaExtra.filter(x => !x.f); commit(); break;
     case 'fac': facDlg(b.dataset.id); break;
-    case 'div': divDlg(b.dataset.id); break;
+    case 'ser': serDlg(b.dataset.id); break;
     case 'turno': turnoDlg(b.dataset.wk, b.dataset.i); break;
     case 'copiaOrari': copiaOrari(); break;
     case 'svuotaOrari': { const wk = wkKey(wOff); ask('Togliere tutti gli orari di questa settimana?', 'Svuota').then(ok => { if (ok){ delete S.orari[wk]; commit(); } }); break; }

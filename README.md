@@ -1,6 +1,6 @@
 # Organizer di casa
 
-App per il telefono e il computer (PWA): menù settimanale, lista della spesa, faccende, scadenze, impegni e divieti di sosta, con notifica alle 22:30 la sera prima di un divieto.
+App per il telefono e il computer (PWA): menù settimanale, lista della spesa, faccende, orari di lavoro e agenda (impegni, scadenze e avvisi della sera prima come raccolta differenziata e divieti di sosta, con notifica).
 
 - `app/` è l'app, pubblicata su GitHub Pages da `.github/workflows/pages.yml`.
 - I dati stanno su Firebase (Firestore), un documento per utente in `utenti/{uid}`; le regole sono in `firestore.rules`.
@@ -19,6 +19,6 @@ App per il telefono e il computer (PWA): menù settimanale, lista della spesa, f
 
 - Apri l'app, crea il tuo account (email e password) e accedi. Dopo averlo creato puoi disattivare le nuove registrazioni in Firebase → Authentication → Impostazioni → Azioni utente.
 - Su iPhone: Safari → Condividi → Aggiungi alla schermata Home, poi apri l'app da lì. Solo così iOS permette le notifiche.
-- Scadenze → Divieti di sosta → **Attiva le notifiche qui**, su ogni dispositivo dove vuoi ricevere l'avviso.
+- Agenda → Ricorrenti → **Attiva le notifiche qui**, su ogni dispositivo dove vuoi ricevere gli avvisi della sera prima.
 - Per provare: GitHub → Actions → Promemoria parcheggio → Run workflow manda subito una notifica di prova.
 - Account → Importa da file carica i dati esportati dalla versione precedente.

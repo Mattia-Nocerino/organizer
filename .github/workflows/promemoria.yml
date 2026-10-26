@@ -2,8 +2,8 @@ name: Promemoria parcheggio
 
 on:
   schedule:
-    # ogni 10 minuti tra le 20:00 e le 21:59 UTC (le 22:30 di Roma, con ora legale o solare), da lunedì a mercoledì
-    - cron: '*/10 20-21 * * 1,2,3'
+    # ogni 10 minuti tra le 19:00 e le 21:59 UTC: copre gli avvisi serali dalle 21 alle 23 di Roma, con ora legale o solare
+    - cron: '*/10 19-21 * * *'
   workflow_dispatch:
     inputs:
       prova:
