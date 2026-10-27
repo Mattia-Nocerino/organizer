@@ -9,4 +9,4 @@ self.FIREBASE_CONFIG = {
   appId: '1:343203539160:web:aca4a61934ab2f8c554fad'
 };
 // Chiave pubblica per le notifiche: Firebase → Impostazioni progetto → Cloud Messaging → Certificati push web.
-self.VAPID_KEY = '';
+self.VAPID_KEY = 'BMwr9Omcb_o0__0NsRi9jpPL_s6mcUUcHhHN9s12NCgvFsv6FpfsvwBdmjdNWxBUnYX1AjWTihr00kml56_Hk_I';
