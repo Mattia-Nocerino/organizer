@@ -234,7 +234,7 @@ const RIC = [[0,'Una volta sola'],[1,'Ogni mese'],[3,'Ogni 3 mesi'],[6,'Ogni 6 m
 const ricLabel = n => (RIC.find(r => r[0] === Number(n)) || RIC[0])[1];
 
 /* ---------- stato ---------- */
-const EMPTY = () => ({ piatti: [], piani: {}, spesaExtra: [], spesaSpunte: {}, scadenze: [], impegni: [], faccende: [], serali: [], orari: {} });
+const EMPTY = () => ({ piatti: [], piani: {}, spesaExtra: [], spesaSpunte: {}, scadenze: [], impegni: [], faccende: [], serali: [], orari: {}, todo: [] });
 function norm(o){
   const e = EMPTY(); o = (o && typeof o === 'object') ? o : {};
   for (const k in e) if (o[k] !== undefined && Array.isArray(o[k]) === Array.isArray(e[k]) && typeof o[k] === 'object' && o[k] !== null) e[k] = o[k];
@@ -246,7 +246,7 @@ function norm(o){
 const LS = 'casa-organizer-v1';
 let S = EMPTY();
 try { const r = localStorage.getItem(LS); if (r) S = norm(JSON.parse(r)); } catch (e) {}
-const hasContent = s => s.piatti.length || Object.keys(s.orari).length || s.faccende.length || s.serali.length || s.scadenze.length || s.impegni.length || Object.keys(s.piani).length;
+const hasContent = s => s.piatti.length || s.todo.length || Object.keys(s.orari).length || s.faccende.length || s.serali.length || s.scadenze.length || s.impegni.length || Object.keys(s.piani).length;
 
 /* ---------- salvataggio e sincronizzazione ---------- */
 let ref = null, timer = null, saving = false, again = false, readOnly = false;
@@ -587,6 +587,13 @@ function vAgenda(){
   h += ev.length ? `<div class="box">${ev.map(e => `<button class="arow" data-act="${e.act}" data-id="${e.id}"><span class="q"><b>${e.d === tIso ? 'Oggi' : esc(g(e.d))}</b>${esc(e.o)}</span><span><span class="t">${esc(e.t)}</span>${e.m ? `<span class="m">${esc(e.m)}</span>` : ''}</span></button>`).join('')}</div>`
     : `<p class="muted">Niente nei prossimi 7 giorni.</p>`;
 
+  h += `<h2>Da fare</h2>
+    <div class="addrow needs-write"><input type="text" id="todoIn" placeholder="Cambiare la lampadina, chiamare l’idraulico…" autocomplete="off"><button class="btn" data-act="addTodo">Aggiungi</button></div>`;
+  if (S.todo.length){
+    h += `<div class="box">${[...S.todo].sort((a,b) => a.f - b.f).map(x => `<label class="check ${x.f ? 'done' : ''}"><input type="checkbox" data-act="tickTodo" data-id="${x.id}" ${x.f ? 'checked' : ''}><span class="name">${esc(x.t)}</span></label>`).join('')}</div>`;
+    if (S.todo.some(x => x.f)) h += `<div class="bar needs-write"><button class="btn small ghost" data-act="clearTodo">Togli quelle fatte</button></div>`;
+  } else h += `<p class="muted">Niente da fare. Beati voi.</p>`;
+
   const futuri = impegniDa(tIso); const passati = S.impegni.filter(i => i.data < tIso).sort((a,b) => b.data.localeCompare(a.data));
   h += `<h2>Impegni</h2><p class="muted small">Visite, feste, appuntamenti: quelli che capitano una volta.</p>
     <div class="bar needs-write"><button class="btn small" data-act="imp">Aggiungi impegno</button></div>`;
@@ -878,6 +885,11 @@ async function copyList(){
     });
   }
 }
+function addTodo(){
+  const el = $('#todoIn'); const v = el && el.value.trim(); if (!v) return;
+  S.todo.push({ id: uid(), t: v, f: false }); commit();
+  const n = $('#todoIn'); if (n) n.focus();
+}
 function addExtra(){
   const el = $('#extraIn'); const v = el && el.value.trim(); if (!v) return;
   S.spesaExtra.push({ id: uid(), t: v, f: false }); commit();
@@ -897,6 +909,8 @@ document.addEventListener('click', e => {
     case 'dish': dishDlg(b.dataset.id); break;
     case 'copy': copyList(); break;
     case 'addExtra': addExtra(); break;
+    case 'addTodo': addTodo(); break;
+    case 'clearTodo': S.todo = S.todo.filter(x => !x.f); commit(); break;
     case 'clearExtra': S.spesaExtra = S.spesaExtra.filter(x => !x.f); commit(); break;
     case 'fac': facDlg(b.dataset.id); break;
     case 'ser': serDlg(b.dataset.id); break;
@@ -929,6 +943,8 @@ document.addEventListener('change', e => {
     const wk = b.dataset.wk, k = b.dataset.k; S.spesaSpunte[wk] = S.spesaSpunte[wk] || {};
     if (b.checked) S.spesaSpunte[wk][k] = true; else delete S.spesaSpunte[wk][k];
     commit();
+  } else if (b.dataset.act === 'tickTodo'){
+    const x = S.todo.find(x => x.id === b.dataset.id); if (x){ x.f = b.checked; commit(); }
   } else if (b.dataset.act === 'tickExtra'){
     const x = S.spesaExtra.find(x => x.id === b.dataset.id); if (x){ x.f = b.checked; commit(); }
   } else if (b.dataset.act === 'tickFac'){
@@ -937,7 +953,8 @@ document.addEventListener('change', e => {
     commit();
   }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'extraIn'){ e.preventDefault(); addExtra(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'extraIn'){ e.preventDefault(); addExtra(); }
+  if (e.key === 'Enter' && e.target.id === 'todoIn'){ e.preventDefault(); addTodo(); } });
 
 route();
 window.casaApp = { attachCloud, detachCloud, importa, getState: () => S, openDlg, closeDlg, toast, ask, setStatus };
