@@ -66,7 +66,7 @@ async function start(){
       <p class="muted small">${user ? user.email.replace(/[&<>"']/g, '') : ''}</p>
       <div class="bar"><button type="button" class="btn small ghost" id="aNot">Attiva le notifiche qui</button></div>
       <div class="bar"><button type="button" class="btn small ghost" id="aExp">Esporta i dati</button>
-      <label class="btn small ghost" style="cursor:pointer">Importa da file<input type="file" id="aImp" accept="application/json,.json" hidden></label></div>
+      <label class="btn small ghost" style="cursor:pointer">Importa da file<input type="file" id="aImp" hidden></label></div>
       <div class="dlg-actions"><button type="button" class="btn danger" id="aOut">Esci</button><span class="spacer"></span><button type="button" class="btn" id="aCls">Chiudi</button></div>`, d => {
       d.querySelector('#aCls').addEventListener('click', app.closeDlg);
       d.querySelector('#aNot').addEventListener('click', () => { app.closeDlg(); attivaNotifiche(); });
@@ -78,11 +78,21 @@ async function start(){
       });
       d.querySelector('#aImp').addEventListener('change', async e => {
         const file = e.target.files[0]; if (!file) return;
+        let o;
         try {
-          let o = JSON.parse(await file.text()); if (o && o.data && o.data.piatti) o = o.data;
+          const t = (await file.text()).replace(/^\uFEFF/, '').trim();
+          o = JSON.parse(t.slice(t.indexOf('{')));
+          if (o && o.data && o.data.piatti) o = o.data;
+          if (!o || typeof o !== 'object' || !Array.isArray(o.piatti)) throw new Error('mancano i piatti');
+        } catch (x){
           app.closeDlg();
-          if (await app.ask('Sostituire tutti i dati attuali con quelli del file?', 'Importa')){ app.importa(o); app.toast('Dati importati'); }
-        } catch (x){ app.toast('Il file non è valido'); }
+          app.toast(`“${file.name}” non è il file giusto (${file.size} byte): ${x.message}`.slice(0, 160));
+          return;
+        }
+        app.closeDlg();
+        if (!(await app.ask(`Sostituire tutti i dati attuali con quelli del file? (${o.piatti.length} piatti, ${(o.faccende || []).length} faccende)`, 'Importa'))) return;
+        try { app.importa(o); app.toast('Dati importati'); }
+        catch (x){ app.toast('Importazione non riuscita: ' + x.message); }
       });
     });
   });
