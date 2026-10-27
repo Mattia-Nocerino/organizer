@@ -2,8 +2,8 @@ name: Promemoria serali
 
 on:
   schedule:
-    # ogni 10 minuti tra le 19:00 e le 21:59 UTC: copre gli avvisi serali dalle 21 alle 23 di Roma, con ora legale o solare
-    - cron: '*/10 19-21 * * *'
+    # ogni 10 minuti, tutto il giorno: avvisi serali, impegni e scadenze
+    - cron: '*/10 * * * *'
   workflow_dispatch:
     inputs:
       prova:

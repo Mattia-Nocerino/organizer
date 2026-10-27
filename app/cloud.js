@@ -66,7 +66,8 @@ async function start(){
       <p class="muted small">${user ? user.email.replace(/[&<>"']/g, '') : ''}</p>
       <div class="bar"><button type="button" class="btn small ghost" id="aNot">Attiva le notifiche qui</button></div>
       <div class="bar"><button type="button" class="btn small ghost" id="aExp">Esporta i dati</button>
-      <label class="btn small ghost" style="cursor:pointer">Importa da file<input type="file" id="aImp" hidden></label></div>
+      <label class="btn small ghost" style="cursor:pointer">Importa da file<input type="file" id="aImp" hidden></label>
+      <button type="button" class="btn small ghost" id="aPaste">Incolla i dati</button></div>
       <div class="dlg-actions"><button type="button" class="btn danger" id="aOut">Esci</button><span class="spacer"></span><button type="button" class="btn" id="aCls">Chiudi</button></div>`, d => {
       d.querySelector('#aCls').addEventListener('click', app.closeDlg);
       d.querySelector('#aNot').addEventListener('click', () => { app.closeDlg(); attivaNotifiche(); });
@@ -78,24 +79,37 @@ async function start(){
       });
       d.querySelector('#aImp').addEventListener('change', async e => {
         const file = e.target.files[0]; if (!file) return;
-        let o;
-        try {
-          const t = (await file.text()).replace(/^\uFEFF/, '').trim();
-          o = JSON.parse(t.slice(t.indexOf('{')));
-          if (o && o.data && o.data.piatti) o = o.data;
-          if (!o || typeof o !== 'object' || !Array.isArray(o.piatti)) throw new Error('mancano i piatti');
-        } catch (x){
-          app.closeDlg();
-          app.toast(`“${file.name}” non è il file giusto (${file.size} byte): ${x.message}`.slice(0, 160));
-          return;
-        }
         app.closeDlg();
-        if (!(await app.ask(`Sostituire tutti i dati attuali con quelli del file? (${o.piatti.length} piatti, ${(o.faccende || []).length} faccende)`, 'Importa'))) return;
-        try { app.importa(o); app.toast('Dati importati'); }
-        catch (x){ app.toast('Importazione non riuscita: ' + x.message); }
+        importaTesto(await file.text(), `“${file.name}” non è il file giusto (${file.size} byte)`);
       });
+      d.querySelector('#aPaste').addEventListener('click', () => (app.closeDlg(), app.openDlg(`<h2>Incolla i dati</h2>
+        <p class="muted small">Incolla qui tutto il contenuto del file JSON.</p>
+        <textarea id="pTxt" style="min-height:180px;width:100%" placeholder='{"piatti": …}'></textarea>
+        <div class="dlg-actions"><span class="spacer"></span><button type="button" class="btn ghost" id="pNo">Annulla</button><button type="button" class="btn" id="pOk">Importa</button></div>`, p => {
+        p.querySelector('#pNo').addEventListener('click', app.closeDlg);
+        p.querySelector('#pOk').addEventListener('click', () => {
+          const t = p.querySelector('#pTxt').value; app.closeDlg();
+          importaTesto(t, 'Il testo incollato non va bene');
+        });
+      })));
     });
   });
+
+  async function importaTesto(testo, errore){
+    let o;
+    try {
+      const t = testo.replace(/^\uFEFF/, '').trim();
+      o = JSON.parse(t.slice(t.indexOf('{')));
+      if (o && o.data && o.data.piatti) o = o.data;
+      if (!o || typeof o !== 'object' || !Array.isArray(o.piatti)) throw new Error('mancano i piatti');
+    } catch (x){
+      app.toast(`${errore}: ${x.message}`.slice(0, 160));
+      return;
+    }
+    if (!(await app.ask(`Sostituire tutti i dati attuali con quelli importati? (${o.piatti.length} piatti, ${(o.faccende || []).length} faccende)`, 'Importa'))) return;
+    try { app.importa(o); app.toast('Dati importati'); }
+    catch (x){ app.toast('Importazione non riuscita: ' + x.message); }
+  }
 
   /* ---------- notifiche push ---------- */
   async function attivaNotifiche(){
@@ -118,5 +132,7 @@ async function start(){
       app.toast('Notifiche attive su questo dispositivo');
     } catch (e){ app.toast('Non sono riuscito ad attivare le notifiche'); }
   }
+  // ad app aperta Firebase non mostra la notifica: la faccio comparire come avviso in basso
+  M.isSupported().then(ok => { if (ok) M.onMessage(M.getMessaging(fb), p => app.toast((p.notification && [p.notification.title, p.notification.body].filter(Boolean).join(': ')) || 'Promemoria')); }).catch(() => {});
   window.casaCloud = { attivaNotifiche };
 }

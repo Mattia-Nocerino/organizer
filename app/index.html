@@ -290,12 +290,23 @@ function attachCloud(r){
     if (snap.exists){
       S = norm(JSON.parse(JSON.stringify(snap.data())));
       try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {}
-      render(); setStatus('ok');
+      render(); setStatus('ok'); checkSilenzia();
     } else if (first && hasContent(S)){
       flush();
     } else setStatus('ok');
     first = false;
   }, () => setStatus('err'));
+}
+// toccando la notifica di un impegno si arriva con ?silenzia=<id>: chiedo se fermare gli avvisi successivi
+function checkSilenzia(){
+  const id = new URLSearchParams(location.search).get('silenzia'); if (!id) return;
+  const i = S.impegni.find(x => x.id === id); if (!i) return; // forse i dati non sono ancora arrivati
+  history.replaceState(null, '', location.pathname + location.hash);
+  if (i.muto) return;
+  ask(`Silenziare i prossimi avvisi per “${i.titolo}”?`, 'Silenzia').then(ok => {
+    const x = ok && S.impegni.find(y => y.id === id);
+    if (x){ x.muto = true; commit(); toast('Avvisi silenziati'); }
+  });
 }
 function detachCloud(){ if (unsub) unsub(); unsub = null; ref = null; clearTimeout(timer); timer = null; setStatus('local'); }
 function importa(o){ S = norm(o); commit(); }
@@ -563,11 +574,13 @@ function vCasa(){
   return h;
 }
 
+const AVVISI = [[1440,'24 ore'],[120,'2 ore'],[60,'1 ora'],[30,'30 minuti']];
 function impItem(i){
   const d = parse(i.data); const dd = diffDays(d, today());
   const quando = dd === 0 ? 'Oggi' : dd === 1 ? 'Domani' : cap(fmt(d,{weekday:'long', day:'numeric', month:'long'}));
   return `<li class="item ${dd <= 1 && dd >= 0 ? 'soon' : 'ok'}"><div class="title">${esc(i.titolo)}</div>
     <div class="meta">${quando}${i.ora ? ' alle ' + esc(i.ora) : ''}${i.chi ? ', ' + esc(i.chi) : ''}</div>
+    ${IS_APP && (i.avvisi || []).length ? `<div class="meta">${i.muto ? 'Avvisi silenziati' : 'Avvisi: ' + AVVISI.filter(([m]) => i.avvisi.includes(m)).map(a => a[1]).join(', ') + ' prima'}</div>` : ''}
     ${i.note ? `<div class="meta">${esc(i.note)}</div>` : ''}
     <div class="row-actions"><a class="btn small ghost" href="${gcal({ text: i.titolo, date: d, time: i.ora, details: [i.chi, i.note].filter(Boolean).join('\n') })}" target="_blank" rel="noopener">Aggiungi al calendario</a>
     <button class="btn small ghost needs-write" data-act="imp" data-id="${i.id}">Modifica</button></div></li>`;
@@ -797,6 +810,9 @@ function impDlg(id){
     <label class="f">Ora (facoltativa)<input type="time" id="o" value="${i ? esc(i.ora || '') : ''}"></label></div>
     <label class="f">Chi è coinvolto<input type="text" id="c" value="${i ? esc(i.chi || '') : ''}" placeholder="Io, Giulia, tutti…"></label>
     <label class="f">Note<textarea id="no" style="min-height:70px" placeholder="Cosa portare, indirizzo…">${i ? esc(i.note || '') : ''}</textarea></label>
+    ${IS_APP ? `<p class="muted small">Avvisami prima (senza ora, conta dalle 9 del giorno):</p>
+    <div class="chips" id="av">${AVVISI.map(([m,t]) => `<label class="chip"><input type="checkbox" value="${m}" ${i && (i.avvisi || []).includes(m) ? 'checked' : ''}>${t}</label>`).join('')}</div>
+    ${i && i.muto ? '<label class="chip"><input type="checkbox" id="mu" checked>Avvisi silenziati</label>' : ''}` : ''}
     <div class="dlg-actions">${i ? '<button type="button" class="btn danger" id="del">Elimina</button>' : ''}<span class="spacer"></span>
     <button type="button" class="btn ghost" id="cls">Annulla</button><button type="button" class="btn" id="ok">Salva</button></div>`, d => {
     d.querySelector('#cls').addEventListener('click', closeDlg);
@@ -805,6 +821,10 @@ function impDlg(id){
       if (!titolo){ d.querySelector('#t').focus(); return; }
       if (!data){ d.querySelector('#d').focus(); return; }
       const o = { titolo, data, ora: d.querySelector('#o').value, chi: d.querySelector('#c').value.trim(), note: d.querySelector('#no').value.trim() };
+      if (IS_APP){
+        o.avvisi = [...d.querySelectorAll('#av input:checked')].map(x => +x.value);
+        const mu = d.querySelector('#mu'); o.muto = !!(mu && mu.checked);
+      }
       if (i) Object.assign(i, o); else S.impegni.push({ id: uid(), ...o });
       closeDlg(); commit(); toast('Impegno salvato');
     });
@@ -956,7 +976,7 @@ document.addEventListener('change', e => {
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'extraIn'){ e.preventDefault(); addExtra(); }
   if (e.key === 'Enter' && e.target.id === 'todoIn'){ e.preventDefault(); addTodo(); } });
 
-route();
+route(); checkSilenzia();
 window.casaApp = { attachCloud, detachCloud, importa, getState: () => S, openDlg, closeDlg, toast, ask, setStatus };
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 </script>
