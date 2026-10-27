@@ -20,5 +20,5 @@ App per il telefono e il computer (PWA): menù settimanale, lista della spesa, f
 - Apri l'app, crea il tuo account (email e password) e accedi. Dopo averlo creato puoi disattivare le nuove registrazioni in Firebase → Authentication → Impostazioni → Azioni utente.
 - Su iPhone: Safari → Condividi → Aggiungi alla schermata Home, poi apri l'app da lì. Solo così iOS permette le notifiche.
 - Agenda → Ricorrenti → **Attiva le notifiche qui**, su ogni dispositivo dove vuoi ricevere gli avvisi della sera prima.
-- Per provare: GitHub → Actions → Promemoria parcheggio → Run workflow manda subito una notifica di prova.
+- Per provare: GitHub → Actions → Promemoria serali → Run workflow manda subito una notifica di prova.
 - Account → Importa da file carica i dati esportati dalla versione precedente.
