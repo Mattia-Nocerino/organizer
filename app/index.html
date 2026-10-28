@@ -590,12 +590,20 @@ function vCasa(){
   return h;
 }
 
-// vista a elenco o a calendario del mese (senza le ricorrenze): scelta ricordata su questo dispositivo
+// vista a elenco o a calendario del mese: scelta ricordata su questo dispositivo
 let agVista = 'lista', agOff = 0, agSel = '';
 try { agVista = localStorage.getItem('casa-agenda-vista') || 'lista'; } catch (e) {}
 if (agVista === 'sett') agVista = 'mese';
+// nel calendario non vanno le ricorrenze settimanali (parcheggio, raccolta): le mensili e annuali sì, anche le volte dopo
+function capitaIl(v, g){
+  if (v.ripeti === 'sett' || !v.data || v.data > g) return false;
+  const n = mesi(v); if (!n) return v.data === g;
+  if (v.fatto) return false;
+  for (let d = parse(v.data), i = 0; iso(d) <= g && i < 400; d = addMonths(parse(v.data), n * ++i)) if (iso(d) === g) return true;
+  return false;
+}
 function delGiorno(g){
-  return S.agenda.filter(v => !v.ripeti && v.data === g).sort(perData);
+  return S.agenda.filter(v => capitaIl(v, g)).sort(perData);
 }
 function vMese(){
   const t = today(), tIso = iso(t);
