@@ -722,7 +722,7 @@ function ricettaDlg(p, cambia){
     <p class="muted small">Per 2 adulti e 2 bambini${r.tempo ? ' · circa ' + esc(r.tempo) : ''}${r.bimby ? ' · con il Bimby' : ''}</p>
     <h3 class="rh">Ingredienti</h3><ul class="dosi">${r.dosi.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
     <h3 class="rh">Preparazione</h3><ol class="passi">${r.passi.map(x => `<li>${esc(passoTesto(x))}${impostazioni(x)}</li>`).join('')}</ol>
-    ${r.bimby ? '<p class="muted small">Impostazioni valide per il Bimby TM7 (e anche TM6 e TM5).</p>' : ''}
+    ${r.bimby ? '<p class="muted small"><b>vel. soft</b>: la velocità più lenta, mescola piano come un cucchiaio. <b>Antiorario</b>: le lame girano al contrario e mescolano senza tagliare, così pasta, riso e legumi restano interi. Impostazioni valide per il Bimby TM7 (e anche TM6 e TM5).</p>' : ''}
     <div class="dlg-actions">${cambia ? '<button type="button" class="btn ghost" id="chg">Cambia piatto</button>' : ''}<span class="spacer"></span>
     <button type="button" class="btn ghost" id="cls">Chiudi</button><button type="button" class="btn" id="go">Cucina passo passo</button></div>`, d => {
     d.querySelector('#cls').addEventListener('click', closeDlg);
