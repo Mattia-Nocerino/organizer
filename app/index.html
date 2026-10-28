@@ -137,7 +137,7 @@ p{margin:0 0 10px}
 .addrow input{flex:1;min-width:0}
 
 /* form */
-input[type=text],input[type=search],input[type=date],input[type=time],input[type=number],select,textarea{
+input[type=text],input[type=search],input[type=date],input.hhmm,input[type=number],select,textarea{
   width:100%;background:var(--bg);border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;font-size:16px}
 textarea{min-height:110px;resize:vertical}
 label.f{display:block;margin:0 0 12px;font-size:.9rem;color:var(--muted)}
@@ -744,7 +744,7 @@ function facDlg(id){
 /* ---------- dialog: orario del giorno ---------- */
 function turnoDlg(wk, i){
   const o = (S.orari[wk] || {})[i] || {}; const d = addDays(parse(wk), Number(i));
-  const t = (id, v) => `<label class="f">${id.endsWith('0') ? 'Attacca' : 'Stacca'}<input type="time" id="${id}" value="${v || ''}"></label>`;
+  const t = (id, v) => `<label class="f">${id.endsWith('0') ? 'Attacca' : 'Stacca'}<input type="text" inputmode="numeric" class="hhmm" placeholder="hh:mm" maxlength="5" autocomplete="off" id="${id}" value="${v || ''}"></label>`;
   openDlg(`<h2>${GIORNI[i]} ${d.getDate()} ${fmt(d,{month:'long'})}</h2>
     <p class="muted small" style="margin:0 0 4px">Mattina</p><div class="two">${t('m0', o.m && o.m[0])}${t('m1', o.m && o.m[1])}</div>
     <p class="muted small" style="margin:0 0 4px">Pomeriggio</p><div class="two">${t('p0', o.p && o.p[0])}${t('p1', o.p && o.p[1])}</div>
@@ -773,13 +773,13 @@ function voceDlg(id, giorno){
   openDlg(`<h2>${v ? 'Modifica' : 'Aggiungi'}</h2>
     <label class="f">Cosa<input type="text" id="t" value="${v ? esc(v.titolo) : ''}" placeholder="Pediatra, bollo auto, chiamare l’idraulico…"></label>
     <div class="two"><label class="f" id="dBox">Giorno<input type="date" id="d" value="${v ? v.data : giorno || ''}"></label>
-    <label class="f">Ora<input type="time" id="o" value="${v ? esc(v.ora) : ''}"></label></div>
+    <label class="f">Ora<input type="text" inputmode="numeric" class="hhmm" placeholder="hh:mm" maxlength="5" autocomplete="off" id="o" value="${v ? esc(v.ora) : ''}"></label></div>
     <label class="f">Si ripete<select id="r">${RIPETI.map(([k, l]) => `<option value="${k}" ${v && v.ripeti === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     <div id="sBox"><div class="chips" id="gg">${GIORNI.map((x,i) => `<label class="chip"><input type="checkbox" value="${i}" ${g.has(i) ? 'checked' : ''}>${x.slice(0,3)}</label>`).join('')}</div>
     <label class="f">Quali date<select id="pa"><option value="">Tutte</option><option value="pari">Solo date pari</option><option value="dispari">Solo date dispari</option></select></label></div>
     <div id="aBox">${IS_APP ? `<p class="muted small" style="margin:0">Avvisami (senza ora si conta dalle 9)</p>
     <div class="chips" id="av">${AVVISI.map(([m, l]) => `<label class="chip"><input type="checkbox" value="${m}" ${av.has(m) ? 'checked' : ''}>${m ? l + ' prima' : l}</label>`).join('')}</div>` : ''}
-    <div class="chips"><label class="chip"><input type="checkbox" id="se" ${v && v.sera ? 'checked' : ''}>La sera prima alle</label><input type="time" id="so" value="${v && v.sera ? esc(v.sera) : '21:30'}" style="width:auto"></div>
+    <div class="chips"><label class="chip"><input type="checkbox" id="se" ${v && v.sera ? 'checked' : ''}>La sera prima alle</label><input type="text" inputmode="numeric" class="hhmm" placeholder="hh:mm" maxlength="5" autocomplete="off" id="so" value="${v && v.sera ? esc(v.sera) : '21:30'}" style="width:5.5em"></div>
     ${v && v.muto ? '<label class="chip"><input type="checkbox" id="mu" checked>Avvisi silenziati per questa volta</label>' : ''}</div>
     <p class="muted small" id="hint"></p>
     <label class="f">Note<textarea id="no" style="min-height:60px" placeholder="Cosa portare, indirizzo, targa…">${v ? esc(v.note) : ''}</textarea></label>
@@ -952,6 +952,18 @@ document.addEventListener('change', e => {
     commit();
   }
 });
+// orari sempre a 24 ore: campi di testo invece del selettore del telefono, che può mostrare AM/PM
+const hhmm = t => {
+  const d = String(t).replace(/\D/g, ''); if (!d) return '';
+  const [h, m] = d.length <= 2 ? [d, '0'] : [d.slice(0, d.length - 2), d.slice(-2)];
+  return +h < 24 && +m < 60 ? `${pad(+h)}:${pad(+m)}` : '';
+};
+document.addEventListener('input', e => {
+  const el = e.target; if (!el.classList || !el.classList.contains('hhmm')) return;
+  let d = el.value.replace(/\D/g, ''); if (/^[3-9]/.test(d)) d = '0' + d; d = d.slice(0, 4);
+  el.value = d.length > 2 ? d.slice(0, 2) + ':' + d.slice(2) : d;
+});
+document.addEventListener('focusout', e => { const el = e.target; if (el.classList && el.classList.contains('hhmm')) el.value = hhmm(el.value); }, true);
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'extraIn'){ e.preventDefault(); addExtra(); } });
 
 route(); checkSilenzia();
