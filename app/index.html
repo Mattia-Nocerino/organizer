@@ -71,6 +71,10 @@ p{margin:0 0 10px}
 .meal .when{display:block;font-size:.9rem;color:var(--muted)}
 .meal .dish{display:block;font-family:var(--serif);font-size:clamp(1.7rem,7vw,2.3rem);line-height:1.15;margin-top:2px}
 .meal .dish.empty{color:var(--muted);font-size:1.4rem}
+.meals.duo{grid-template-columns:1fr 1fr;gap:8px}
+.meals.duo .meal{background:var(--surface);border:0;border-radius:12px;padding:10px 12px}
+.meals.duo .meal .dish{font-size:clamp(1.1rem,4.6vw,1.45rem)}
+.meals.duo .meal .dish.empty{font-size:1.05rem}
 .tomorrow{font-size:.95rem;color:var(--muted);margin:6px 0 0}
 .tomorrow strong{color:var(--ink);font-weight:500}
 .banner{background:var(--primary-soft);border-radius:14px;padding:14px 16px;margin:18px 0 0;display:flex;flex-direction:column;gap:10px;align-items:flex-start}
@@ -406,13 +410,17 @@ function vOggi(){
   const meal = (w, v, which) => `<button class="meal" data-act="slot" data-wk="${iso(monday(t))}" data-key="${dayIdx(t)}-${which}" data-label="${cap(fmt(t,{weekday:'long'}))}, ${w.toLowerCase()}">
       <span class="when">${w}</span>
       <span class="dish ${v ? '' : 'empty'}">${v ? esc(slotLabel(v)) : 'Da decidere'}</span></button>`;
-  let h = `<p class="date">${cap(fmt(t,{weekday:'long', day:'numeric', month:'long'}))}</p>
-    <div class="meals">${meal('A pranzo', p, 'p')}${meal('A cena', c, 'c')}</div>`;
+  let h = `<p class="date">${cap(fmt(t,{weekday:'long', day:'numeric', month:'long'}))}</p>`;
   const oT = turnoTxt(turnoDi(t)), oD = turnoTxt(turnoDi(tm));
   if (oT || oD) h += `<a class="orari" href="#orari" style="display:block;color:inherit;text-decoration:none">${CHI} oggi: <strong>${esc(oT || 'non segnato')}</strong>${oD ? `<br><span class="muted small">Domani: ${esc(oD)}</span>` : ''}</a>`;
-  const sera = stasera();
-  if (sera.length) h += `<ul class="list" style="margin-top:14px">${sera.map(v => `<li class="item soon"><div class="title">Stasera alle ${esc(v.sera)}: ${esc(v.titolo)}</div>${v.note ? `<div class="meta">${esc(v.note)}</div>` : ''}</li>`).join('')}</ul>`;
+
+  h += `<h2>Pasti</h2><div class="meals duo">${meal('Pranzo', p, 'p')}${meal('Cena', c, 'c')}</div>`;
   if (pT || cT) h += `<p class="tomorrow">Domani: <strong>${esc(slotLabel(pT) || '–')}</strong> a pranzo, <strong>${esc(slotLabel(cT) || '–')}</strong> a cena</p>`;
+
+  // raccolta differenziata, spazzatrice e le altre ricorrenze della sera prima
+  const sera = stasera();
+  h += `<h2>Reminder</h2>` + (sera.length ? `<ul class="list">${sera.map(v => `<li class="item soon"><div class="title">Stasera alle ${esc(v.sera)}: ${esc(v.titolo)}</div>${v.note ? `<div class="meta">${esc(v.note)}</div>` : ''}</li>`).join('')}</ul>`
+    : `<p class="muted">Niente da ricordare stasera.</p>`);
 
   if (!hasContent(S)){
     h += `<div class="banner needs-write"><div><p><strong>Per cominciare</strong></p>
@@ -426,15 +434,15 @@ function vOggi(){
   const fac = facOggi();
   if (fac.length){
     const fatte = fac.filter(f => facStato(f).done).length;
-    h += `<h2>Casa, oggi</h2><p class="muted small">${fatte} di ${fac.length} fatte</p><div class="box">${fac.map(facRow).join('')}</div>`;
+    h += `<h2>Faccende</h2><p class="muted small">${fatte} di ${fac.length} fatte oggi</p><div class="box">${fac.map(facRow).join('')}</div>`;
   }
 
   const late = S.agenda.filter(inRitardo).sort(perData);
   if (late.length) h += `<h2>In ritardo</h2><div class="box">${late.map(v => voceRow(v, v.data)).join('')}</div>`;
   const ev = prossimi(t, 7).filter(([, v]) => v.ripeti !== 'sett');
   h += `<h2>Prossimi 7 giorni</h2>` + (ev.length ? `<div class="box">${ev.map(([d, v]) => voceRow(v, d)).join('')}</div>` : `<p class="muted">Niente in agenda.</p>`);
-  const nTodo = daFare().length;
-  if (nTodo) h += `<p class="muted"><a href="#agenda">${nTodo === 1 ? 'Una cosa' : nTodo + ' cose'} da fare senza data</a></p>`;
+  const todo = daFare();
+  if (todo.length) h += `<h2>Da fare</h2>` + box(todo.map(v => voceRow(v, '')));
   return h;
 }
 
