@@ -35,7 +35,7 @@ self.RICETTE = {
       ['Aggiungi i ceci sciacquati e gli aghi di rosmarino.', '2 min · 120° · vel. 1 · antiorario'],
       ['Aggiungi l’acqua e il sale.', '10 min · 100° · vel. 1'],
       ['Frulla appena, per avere metà crema e metà ceci interi.', '10 sec · vel. 5'],
-      ['Aggiungi la pasta e cuoci 1 minuto più di quanto dice la confezione.', '11 min · 100° · cucchiaio'],
+      ['Aggiungi la pasta e cuoci 1 minuto più di quanto dice la confezione. Non si scola: la pasta cuoce nel brodo e lo assorbe.', '11 min · 100° · cucchiaio'],
       'Lascia riposare 2 minuti nel boccale, poi servi con un filo d’olio a crudo.'
     ]
   },
@@ -106,7 +106,7 @@ self.RICETTE = {
     passi: [
       ['Metti l’olio nel boccale.', '2 min · 120° · vel. 1'],
       ['Aggiungi le verdure surgelate, l’acqua e il sale.', '25 min · 100° · cucchiaio'],
-      ['Aggiungi i fagioli sciacquati e la pasta e cuoci per il tempo della confezione.', '9 min · 100° · cucchiaio'],
+      ['Aggiungi i fagioli sciacquati e la pasta e cuoci per il tempo della confezione. Non si scola: è una minestra.', '9 min · 100° · cucchiaio'],
       'Lascia riposare 5 minuti, poi servi con olio a crudo e parmigiano.'
     ]
   },
@@ -163,7 +163,7 @@ self.RICETTE = {
       ['Metti nel boccale carota, sedano e cipolla a pezzi.', '5 sec · vel. 5'],
       ['Riporta sul fondo con la spatola, aggiungi l’olio.', '3 min · 120° · vel. 1'],
       ['Aggiungi lenticchie e acqua.', '30 min · 100° · cucchiaio'],
-      ['Aggiungi il sale e la pasta e cuoci per il tempo della confezione. Se è troppo denso aggiungi 100 g d’acqua.', '9 min · 100° · cucchiaio'],
+      ['Aggiungi il sale e la pasta e cuoci per il tempo della confezione. Non si scola: la pasta cuoce nel brodo e lo assorbe. Se è troppo densa aggiungi 100 g d’acqua.', '9 min · 100° · cucchiaio'],
       'Lascia riposare 5 minuti e servi con un filo d’olio.'
     ]
   },
