@@ -171,6 +171,16 @@ dialog::backdrop{background:rgba(10,20,18,.45)}
 .ct.done{text-decoration:line-through;opacity:.6}
 .agh{display:flex;align-items:center;justify-content:space-between;padding:4px 2px}
 .agturno{font-size:.85rem;color:var(--muted);padding:0 2px 6px}
+.rh{font-size:1rem;margin:14px 0 6px}
+.dosi{margin:0;padding-left:20px}
+.dosi li{margin:2px 0}
+.passi{margin:0;padding-left:22px}
+.passi li{margin:0 0 10px}
+.bimby{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.bimby b{font-size:.8rem;font-weight:600;background:var(--primary-soft);color:var(--primary);border-radius:6px;padding:2px 7px}
+.passo{min-height:40vh;display:flex;flex-direction:column;justify-content:center;gap:14px}
+.passo p{font-size:1.35rem;line-height:1.4;margin:0}
+.passo .bimby b{font-size:1.15rem;padding:6px 12px;border-radius:10px}
 .vrow{display:flex;gap:12px;align-items:flex-start;padding:10px 14px 10px 10px;border-bottom:1px solid var(--line);border-left:4px solid transparent}
 .vrow:last-child{border-bottom:0}
 .vrow.late{border-left-color:var(--late)}
@@ -241,6 +251,7 @@ nav.tabs a .ic{position:relative;display:flex}
 <dialog id="dlg"></dialog>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="ricette.js"></script>
 <script>
 /* ---------- utilità ---------- */
 const $ = s => document.querySelector(s);
@@ -701,6 +712,47 @@ function slotDlg(wk, key, label){
   });
 }
 
+/* ---------- ricette ---------- */
+const ricettaDi = p => p && self.RICETTE ? self.RICETTE[p.nome.trim().toLowerCase()] || null : null;
+const passoTesto = x => Array.isArray(x) ? x[0] : x;
+const impostazioni = x => Array.isArray(x) && x[1] ? `<span class="bimby">${x[1].split(' · ').map(t => `<b>${esc(t)}</b>`).join('')}</span>` : '';
+function ricettaDlg(p, cambia){
+  const r = ricettaDi(p);
+  openDlg(`<h2>${esc(p.nome)}</h2>
+    <p class="muted small">Per 2 adulti e 2 bambini${r.tempo ? ' · circa ' + esc(r.tempo) : ''}${r.bimby ? ' · con il Bimby' : ''}</p>
+    <h3 class="rh">Ingredienti</h3><ul class="dosi">${r.dosi.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+    <h3 class="rh">Preparazione</h3><ol class="passi">${r.passi.map(x => `<li>${esc(passoTesto(x))}${impostazioni(x)}</li>`).join('')}</ol>
+    ${r.bimby ? '<p class="muted small">Impostazioni per Bimby TM5 e TM6. Con il TM31, dove c’è 120° usa 100°.</p>' : ''}
+    <div class="dlg-actions">${cambia ? '<button type="button" class="btn ghost" id="chg">Cambia piatto</button>' : ''}<span class="spacer"></span>
+    <button type="button" class="btn ghost" id="cls">Chiudi</button><button type="button" class="btn" id="go">Cucina passo passo</button></div>`, d => {
+    d.querySelector('#cls').addEventListener('click', closeDlg);
+    d.querySelector('#go').addEventListener('click', () => { closeDlg(); passoDlg(p, 0); });
+    if (cambia) d.querySelector('#chg').addEventListener('click', () => { closeDlg(); cambia(); });
+  });
+}
+// un passo alla volta, a caratteri grandi, con lo schermo che resta acceso
+let wake = null;
+async function tieniAcceso(on){
+  try {
+    if (on && !wake && navigator.wakeLock) wake = await navigator.wakeLock.request('screen');
+    if (!on && wake){ await wake.release(); wake = null; }
+  } catch (e) { wake = null; }
+}
+function passoDlg(p, i){
+  const r = ricettaDi(p), n = r.passi.length, x = r.passi[i];
+  tieniAcceso(true);
+  openDlg(`<p class="muted small" style="margin:0">${esc(p.nome)} · passo ${i + 1} di ${n}</p>
+    <div class="passo"><p>${esc(passoTesto(x))}</p>${impostazioni(x)}</div>
+    ${i === 0 ? `<details class="small"><summary>Ingredienti</summary><ul class="dosi">${r.dosi.map(y => `<li>${esc(y)}</li>`).join('')}</ul></details>` : ''}
+    <div class="dlg-actions"><button type="button" class="btn ghost" id="pr" ${i === 0 ? 'disabled' : ''}>Indietro</button><span class="spacer"></span>
+    <button type="button" class="btn ghost" id="cls">Esci</button><button type="button" class="btn" id="nx">${i === n - 1 ? 'Fine' : 'Avanti'}</button></div>`, d => {
+    const esci = () => { tieniAcceso(false); closeDlg(); };
+    d.querySelector('#cls').addEventListener('click', esci);
+    d.querySelector('#pr').addEventListener('click', () => { closeDlg(); passoDlg(p, i - 1); });
+    d.querySelector('#nx').addEventListener('click', () => { if (i === n - 1){ esci(); toast('Buon appetito!'); } else { closeDlg(); passoDlg(p, i + 1); } });
+  });
+}
+
 /* ---------- dialog: piatto ---------- */
 function dishDlg(id){
   const p = id ? piatto(id) : null;
@@ -708,8 +760,10 @@ function dishDlg(id){
     <label class="f">Nome<input type="text" id="n" value="${p ? esc(p.nome) : ''}" placeholder="Pasta e fagioli"></label>
     <label class="f">Tipo<select id="tp">${TIPI.map(([v,l]) => `<option value="${v}">${l}</option>`).join('')}</select></label>
     <label class="f">Ingredienti da comprare, uno per riga<textarea id="ing" placeholder="pasta corta&#10;fagioli borlotti&#10;sedano">${p ? esc((p.ingredienti||[]).join('\n')) : ''}</textarea></label>
+    ${ricettaDi(p) ? '<div class="bar"><button type="button" class="btn small ghost" id="ric">Vedi la ricetta</button></div>' : ''}
     <div class="dlg-actions">${p ? '<button type="button" class="btn danger" id="del">Elimina</button>' : ''}<span class="spacer"></span>
     <button type="button" class="btn ghost" id="cls">Annulla</button><button type="button" class="btn" id="ok">Salva</button></div>`, d => {
+    if (ricettaDi(p)) d.querySelector('#ric').addEventListener('click', () => { closeDlg(); ricettaDlg(p); });
     d.querySelector('#tp').value = p ? tipoDi(p) : 'unico';
     d.querySelector('#cls').addEventListener('click', closeDlg);
     d.querySelector('#ok').addEventListener('click', () => {
@@ -914,7 +968,13 @@ document.addEventListener('click', e => {
   const b = e.target.closest('[data-act]'); if (!b || b.closest('dialog')) return;
   const a = b.dataset.act;
   switch (a){
-    case 'slot': if (readOnly) return; slotDlg(b.dataset.wk, b.dataset.key, b.dataset.label); break;
+    case 'slot': {
+      // se nel pasto c'è un piatto con la ricetta, prima la ricetta; da lì si può cambiare piatto
+      const v = (S.piani[b.dataset.wk] || {})[b.dataset.key], p = v && v.id && piatto(v.id);
+      const cambia = readOnly ? null : () => slotDlg(b.dataset.wk, b.dataset.key, b.dataset.label);
+      if (ricettaDi(p)) ricettaDlg(p, cambia); else if (cambia) cambia();
+      break;
+    }
     case 'wk': wOff = Math.max(-1, Math.min(2, wOff + Number(b.dataset.d))); render(); break;
     case 'planNext': wOff = 1; location.hash = 'menu'; break;
     case 'autofill': autofill(); break;
