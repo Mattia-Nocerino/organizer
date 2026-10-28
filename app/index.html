@@ -180,6 +180,7 @@ dialog::backdrop{background:rgba(10,20,18,.45)}
 .bimby{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .bimby b{font-size:.8rem;font-weight:600;background:var(--primary-soft);color:var(--primary);border-radius:6px;padding:2px 7px}
 .passo{min-height:40vh;display:flex;flex-direction:column;justify-content:center;gap:14px}
+.passodosi{background:var(--surface-2,var(--primary-soft));border-radius:10px;padding:8px 12px 8px 28px;font-size:1rem}
 .passo p{font-size:1.35rem;line-height:1.4;margin:0}
 .passo .bimby b{font-size:1.15rem;padding:6px 12px;border-radius:10px}
 .vrow{display:flex;gap:12px;align-items:flex-start;padding:10px 14px 10px 10px;border-bottom:1px solid var(--line);border-left:4px solid transparent}
@@ -733,6 +734,15 @@ function scala(t, k){
     return num(Math.max(orig >= 1 ? 1 : .5, Math.round(v * 2) / 2)) + sp;
   });
 }
+// le dosi degli ingredienti nominati in un passo, per non dover tornare all'elenco
+const NON_INGR = new Set('piccola piccolo cotti cotto surgelati surgelate extravergine grattugiato circa sgocciolati sgocciolato confezione barattolo barattoli servire accompagnare pulita pulito anche dalla sera prima chiedi banco sfilettarla pronto pronta scatolette scatoletta vasetto fette fetta spicchio rametto rametti costa cucchiai cucchiaio filo crudo decorticate naturale dadini ammollo serve scongelati frigo tutto totale carnaroli secche secchi intera interi corta'.split(' '));
+const parole = t => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').match(/[a-z]+/g) || [];
+function doseNelPasso(r, testo){
+  const w = parole(testo);
+  return r.dosi.filter(d => parole(d.replace(/\(.*?\)/g, '')).filter(x => x.length >= 4 && !NON_INGR.has(x))
+    .some(x => x.length <= 4 ? w.some(y => y.length === x.length && y.slice(0, 3) === x.slice(0, 3)) // uova e uovo, ma non pane e pangrattato
+      : w.some(y => y.startsWith(x.slice(0, Math.max(4, x.length - 2))))));
+}
 const perTxt = () => persone === 'fam' ? '2 adulti e 2 bambini' : persone === '1' ? '1 persona' : persone + ' persone';
 const passoTesto = x => scala(Array.isArray(x) ? x[0] : x, fattore());
 // "cucchiaio" = velocità soft in antiorario, come l'icona del TM7
@@ -774,7 +784,8 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 function passoDlg(p, i){
   const r = ricettaDi(p), n = r.passi.length, x = r.passi[i];
   openDlg(`<p class="muted small" style="margin:0">${esc(p.nome)} · passo ${i + 1} di ${n}</p>
-    <div class="passo"><p>${esc(passoTesto(x))}</p>${impostazioni(x)}</div>
+    <div class="passo"><p>${esc(passoTesto(x))}</p>${impostazioni(x)}
+      ${(() => { const ds = doseNelPasso(r, Array.isArray(x) ? x[0] : x); return ds.length ? `<ul class="dosi passodosi">${ds.map(y => `<li>${esc(scala(y, fattore()))}</li>`).join('')}</ul>` : ''; })()}</div>
     ${i === 0 ? `<details class="small"><summary>Ingredienti, per ${esc(perTxt())}</summary><ul class="dosi">${r.dosi.map(y => `<li>${esc(scala(y, fattore()))}</li>`).join('')}</ul></details>` : ''}
     <div class="dlg-actions"><button type="button" class="btn ghost" id="pr" ${i === 0 ? 'disabled' : ''}>Indietro</button><span class="spacer"></span>
     <button type="button" class="btn ghost" id="cls">Esci</button><button type="button" class="btn" id="nx">${i === n - 1 ? 'Fine' : 'Avanti'}</button></div>`, d => {
