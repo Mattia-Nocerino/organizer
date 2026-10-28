@@ -8,8 +8,8 @@ self.RICETTE = {
     passi: [
       ['Lava e pela le verdure, tagliale a pezzi e mettile nel boccale con l’olio.', '5 sec · vel. 5'],
       ['Aggiungi l’acqua e un pizzico di sale.', '20 min · 100° · vel. 1'],
-      ['Aggiungi i piselli.', '4 min · 100° · cucchiaio'],
-      ['Aggiungi la pastina e cuoci per il tempo scritto sulla confezione.', '6 min · 100° · cucchiaio'],
+      ['Aggiungi i piselli.', '4 min · 100° · vel. soft · antiorario'],
+      ['Aggiungi la pastina e cuoci per il tempo scritto sulla confezione.', '6 min · 100° · vel. soft · antiorario'],
       'Lascia riposare 2 minuti e servi con il parmigiano.'
     ]
   },
@@ -35,7 +35,7 @@ self.RICETTE = {
       ['Aggiungi i ceci sciacquati e gli aghi di rosmarino.', '2 min · 120° · vel. 1 · antiorario'],
       ['Aggiungi l’acqua e il sale.', '10 min · 100° · vel. 1'],
       ['Frulla appena, per avere metà crema e metà ceci interi.', '10 sec · vel. 5'],
-      ['Aggiungi la pasta e cuoci 1 minuto più di quanto dice la confezione. Non si scola: la pasta cuoce nel brodo e lo assorbe.', '11 min · 100° · cucchiaio'],
+      ['Aggiungi la pasta e cuoci 1 minuto più di quanto dice la confezione. Non si scola: la pasta cuoce nel brodo e lo assorbe.', '11 min · 100° · vel. soft · antiorario'],
       'Lascia riposare 2 minuti nel boccale, poi servi con un filo d’olio a crudo.'
     ]
   },
@@ -86,7 +86,7 @@ self.RICETTE = {
       'Aggiungi passata, piselli, acqua e un pizzico di sale.',
       ['Chiudi il boccale, appoggia sopra il Varoma con le polpette e il suo coperchio.', '25 min · Varoma · vel. 1 · antiorario'],
       'Togli il Varoma, versa le polpette nel boccale e mescola piano con la spatola.',
-      ['Lascia insaporire le polpette nel sugo.', '3 min · 100° · cucchiaio'],
+      ['Lascia insaporire le polpette nel sugo.', '3 min · 100° · vel. soft · antiorario'],
       'Servi con il pane.'
     ]
   },
@@ -105,8 +105,8 @@ self.RICETTE = {
     dosi: ['verdure per minestrone surgelate 600 g', 'fagioli borlotti cotti 1 barattolo (240 g sgocciolati)', 'pasta corta piccola 150 g', 'olio extravergine 20 g più un filo a crudo', 'acqua 800 g', 'sale q.b.', 'parmigiano grattugiato per servire'],
     passi: [
       ['Metti l’olio nel boccale.', '2 min · 120° · vel. 1'],
-      ['Aggiungi le verdure surgelate, l’acqua e il sale.', '25 min · 100° · cucchiaio'],
-      ['Aggiungi i fagioli sciacquati e la pasta e cuoci per il tempo della confezione. Non si scola: è una minestra.', '9 min · 100° · cucchiaio'],
+      ['Aggiungi le verdure surgelate, l’acqua e il sale.', '25 min · 100° · vel. soft · antiorario'],
+      ['Aggiungi i fagioli sciacquati e la pasta e cuoci per il tempo della confezione. Non si scola: è una minestra.', '9 min · 100° · vel. soft · antiorario'],
       'Lascia riposare 5 minuti, poi servi con olio a crudo e parmigiano.'
     ]
   },
@@ -162,8 +162,8 @@ self.RICETTE = {
       'Sciacqua bene le lenticchie sotto l’acqua corrente.',
       ['Metti nel boccale carota, sedano e cipolla a pezzi.', '5 sec · vel. 5'],
       ['Riporta sul fondo con la spatola, aggiungi l’olio.', '3 min · 120° · vel. 1'],
-      ['Aggiungi lenticchie e acqua.', '30 min · 100° · cucchiaio'],
-      ['Aggiungi il sale e la pasta e cuoci per il tempo della confezione. Non si scola: la pasta cuoce nel brodo e lo assorbe. Se è troppo densa aggiungi 100 g d’acqua.', '9 min · 100° · cucchiaio'],
+      ['Aggiungi lenticchie e acqua.', '30 min · 100° · vel. soft · antiorario'],
+      ['Aggiungi il sale e la pasta e cuoci per il tempo della confezione. Non si scola: la pasta cuoce nel brodo e lo assorbe. Se è troppo densa aggiungi 100 g d’acqua.', '9 min · 100° · vel. soft · antiorario'],
       'Lascia riposare 5 minuti e servi con un filo d’olio.'
     ]
   },

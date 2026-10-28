@@ -178,6 +178,7 @@ dialog::backdrop{background:rgba(10,20,18,.45)}
 .passi{margin:0;padding-left:22px}
 .passi li{margin:0 0 10px}
 .bimby{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.bimby b.ico{display:inline-flex;align-items:center;padding:0 6px}
 .bimby b{font-size:.8rem;font-weight:600;background:var(--primary-soft);color:var(--primary);border-radius:6px;padding:2px 7px}
 .passo{min-height:40vh;display:flex;flex-direction:column;justify-content:center;gap:14px}
 .passodosi{background:var(--surface-2,var(--primary-soft));border-radius:10px;padding:8px 12px 8px 28px;font-size:1rem}
@@ -745,8 +746,12 @@ function doseNelPasso(r, testo){
 }
 const perTxt = () => persone === 'fam' ? '2 adulti e 2 bambini' : persone === '1' ? '1 persona' : persone + ' persone';
 const passoTesto = x => scala(Array.isArray(x) ? x[0] : x, fattore());
-// "cucchiaio" = velocità soft in antiorario, come l'icona del TM7
-const impostazioni = x => Array.isArray(x) && x[1] ? `<span class="bimby">${x[1].split(' · ').map(t => t === 'cucchiaio' ? '<b title="Cucchiaio: velocità soft, antiorario" aria-label="cucchiaio">🥄</b>' : `<b>${esc(t)}</b>`).join('')}</span>` : '';
+// come sul display del TM7: il cucchiaio è la velocità soft, la freccia che gira è l'antiorario
+const ICONE_BIMBY = {
+  'vel. soft': '<svg viewBox="0 0 24 24" width="1.6em" height="1.6em" aria-hidden="true"><path d="M15.5 2.5 12.2 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><ellipse cx="11.5" cy="15" rx="6.5" ry="3" transform="rotate(-12 11.5 15)" stroke="currentColor" stroke-width="1.8" fill="none"/><path d="M8.6 16.2c.2 2.6 1.6 4.5 3.3 4.4 1.6-.1 2.6-2.1 2.3-4.6z" fill="currentColor"/></svg>',
+  'antiorario': '<svg viewBox="0 0 24 24" width="1.6em" height="1.6em" aria-hidden="true"><path d="M17.5 8.5A6.5 6.5 0 1 0 18 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M14.5 15.5 18.5 14l1 4.2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>'
+};
+const impostazioni = x => Array.isArray(x) && x[1] ? `<span class="bimby">${x[1].split(' · ').map(t => ICONE_BIMBY[t] ? `<b class="ico" title="${t === 'antiorario' ? 'Antiorario' : 'Velocità soft'}" aria-label="${t}">${ICONE_BIMBY[t]}</b>` : `<b>${esc(t)}</b>`).join('')}</span>` : '';
 function ricettaDlg(p, cambia){
   const r = ricettaDi(p);
   openDlg(`<h2>${esc(p.nome)}</h2>
@@ -756,7 +761,7 @@ function ricettaDlg(p, cambia){
     <h3 class="rh">Ingredienti, per ${esc(perTxt())}</h3><ul class="dosi">${r.dosi.map(x => `<li>${esc(scala(x, fattore()))}</li>`).join('')}</ul>
     ${persone !== 'fam' ? '<p class="muted small">Tempi e impostazioni di cottura restano gli stessi.</p>' : ''}
     <h3 class="rh">Preparazione</h3><ol class="passi">${r.passi.map(x => `<li>${esc(passoTesto(x))}${impostazioni(x)}</li>`).join('')}</ol>
-    ${r.bimby ? '<p class="muted small"><b>🥄 Cucchiaio</b>: velocità soft in antiorario, mescola piano senza tagliare. <b>Antiorario</b> da solo: le lame girano al contrario e non tagliano. Impostazioni valide per il Bimby TM7 (e anche TM6 e TM5).</p>' : ''}
+    ${r.bimby ? '<p class="muted small"><b>Cucchiaio</b>: velocità soft, mescola piano. <b>Freccia che gira</b>: antiorario, le lame girano al contrario e non tagliano. Impostazioni valide per il Bimby TM7 (e anche TM6 e TM5).</p>' : ''}
     <div class="dlg-actions">${cambia ? '<button type="button" class="btn ghost" id="chg">Cambia piatto</button>' : ''}<span class="spacer"></span>
     <button type="button" class="btn ghost" id="cls">Chiudi</button><button type="button" class="btn" id="go">Cucina passo passo</button></div>`, d => {
     d.querySelector('#cls').addEventListener('click', closeDlg);
