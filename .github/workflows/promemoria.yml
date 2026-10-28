@@ -1,8 +1,8 @@
-name: Promemoria serali
+name: Promemoria
 
 on:
   schedule:
-    # ogni 10 minuti, tutto il giorno: avvisi serali, impegni e scadenze
+    # ogni 10 minuti, tutto il giorno: gli avvisi dell'agenda
     - cron: '*/10 * * * *'
   workflow_dispatch:
     inputs:

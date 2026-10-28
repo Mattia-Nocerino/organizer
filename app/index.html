@@ -53,7 +53,7 @@ header.top h1{font-family:var(--serif);font-weight:400;font-size:1.25rem;margin:
 header.top .right{display:flex;align-items:baseline;gap:12px}
 .linkbtn{appearance:none;border:0;background:none;padding:0;color:var(--primary);font-size:.85rem;font-weight:600;cursor:pointer}
 #login{position:fixed;inset:0;z-index:40;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px 18px}
-#login[hidden]{display:none}
+#login[hidden],[hidden]{display:none !important}
 #login .card{width:min(420px,100%);background:var(--surface);border-radius:18px;padding:22px 18px}
 #login h1{font-family:var(--serif);font-weight:400;font-size:1.6rem;margin:0 0 6px;color:var(--primary)}
 #login .err{color:var(--late);font-size:.9rem;min-height:1.2em;margin:4px 0 0}
@@ -153,6 +153,16 @@ dialog::backdrop{background:rgba(10,20,18,.45)}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
 .chip{appearance:none;border:0;background:var(--primary-soft);color:var(--ink);padding:5px 12px;border-radius:999px;font-size:.85rem;cursor:pointer}
 .chip input{accent-color:var(--primary);margin:0 4px 0 0;vertical-align:-2px}
+.vrow{display:flex;gap:12px;align-items:flex-start;padding:10px 14px 10px 10px;border-bottom:1px solid var(--line);border-left:4px solid transparent}
+.vrow:last-child{border-bottom:0}
+.vrow.late{border-left-color:var(--late)}
+.vrow.soon{border-left-color:var(--soon)}
+.vrow input{width:20px;height:20px;margin-top:2px;accent-color:var(--primary);flex:none}
+.vdot{width:20px;flex:none;text-align:center;color:var(--muted);line-height:1.5}
+.vtxt{appearance:none;background:none;border:0;padding:0;text-align:left;color:inherit;font:inherit;cursor:pointer;flex:1;min-width:0}
+.vtxt .t{display:block;font-weight:600}
+.vtxt .m{display:block;font-size:.85rem;color:var(--muted)}
+.vrow.done .t{text-decoration:line-through;color:var(--muted)}
 .arow{appearance:none;width:100%;display:grid;grid-template-columns:76px 1fr;gap:10px;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:10px 14px;cursor:pointer;color:inherit;font-size:.95rem}
 .arow:last-child{border-bottom:0}
 .arow .q{color:var(--muted);font-size:.85rem;line-height:1.3}
@@ -230,17 +240,28 @@ const fmt = (d, o) => d.toLocaleDateString('it-IT', o);
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
 const GIORNI = ['Lunedì','Martedì','Mercoledì','Giovedì','Venerdì','Sabato','Domenica'];
 const dayIdx = d => (d.getDay()+6)%7;
-const RIC = [[0,'Una volta sola'],[1,'Ogni mese'],[3,'Ogni 3 mesi'],[6,'Ogni 6 mesi'],[12,'Ogni anno'],[24,'Ogni 2 anni']];
-const ricLabel = n => (RIC.find(r => r[0] === Number(n)) || RIC[0])[1];
 
 /* ---------- stato ---------- */
-const EMPTY = () => ({ piatti: [], piani: {}, spesaExtra: [], spesaSpunte: {}, scadenze: [], impegni: [], faccende: [], serali: [], orari: {}, todo: [] });
+const EMPTY = () => ({ piatti: [], piani: {}, spesaExtra: [], spesaSpunte: {}, agenda: [], faccende: [], orari: {} });
+// vecchio formato: scadenze, impegni, avvisi della sera prima (e prima ancora divieti di sosta) e da fare erano liste separate
+function migraAgenda(o){
+  const A = [];
+  for (const x of o.todo || []) A.push({ id: x.id || uid(), titolo: x.t, fatto: !!x.f });
+  for (const i of o.impegni || []) A.push({ id: i.id || uid(), titolo: i.titolo, data: i.data, ora: i.ora || '', note: [i.chi, i.note].filter(Boolean).join(' · '), avvisi: i.avvisi || [], muto: i.muto ? i.data : '' });
+  for (const x of o.scadenze || []){
+    const pre = Number(x.preavviso) || 0;
+    A.push({ id: x.id || uid(), titolo: x.nome, data: x.data, ripeti: Number(x.ricorrenza) ? String(x.ricorrenza) : '', note: x.note || '', avvisi: [0, ...(pre ? [pre <= 1 ? 1440 : pre <= 10 ? 10080 : 43200] : [])] });
+  }
+  let ser = o.serali;
+  if (!Array.isArray(ser) || !ser.length) ser = (o.divieti || []).map(r => ({ id: r.id, titolo: `Sposta la macchina da ${r.via}`, giorni: [Number(r.giorno)], parita: r.ord, ora: '22:30' }));
+  for (const r of ser) A.push({ id: r.id || uid(), titolo: r.titolo, ripeti: 'sett', giorni: (r.giorni || []).map(Number), parita: r.parita || '', sera: r.ora || '21:30', note: r.nota || '' });
+  return A;
+}
 function norm(o){
   const e = EMPTY(); o = (o && typeof o === 'object') ? o : {};
   for (const k in e) if (o[k] !== undefined && Array.isArray(o[k]) === Array.isArray(e[k]) && typeof o[k] === 'object' && o[k] !== null) e[k] = o[k];
-  // vecchio formato: i divieti di sosta diventano avvisi della sera prima
-  if (Array.isArray(o.divieti) && o.divieti.length && !e.serali.length)
-    e.serali = o.divieti.map(r => ({ id: r.id, titolo: `Sposta la macchina da ${r.via}`, giorni: [Number(r.giorno)], parita: r.ord, ora: '22:30', nota: '' }));
+  if (!Array.isArray(o.agenda)) e.agenda = migraAgenda(o);
+  e.agenda = e.agenda.map(v => ({ id: uid(), titolo: '', note: '', data: '', ora: '', ripeti: '', giorni: [], parita: '', avvisi: [], sera: '', muto: '', fatto: false, ...v }));
   for (const p of e.piatti) if (Array.isArray(p.ingredienti)) p.ingredienti = [...new Set(p.ingredienti.map(sing))];
   return e;
 }
@@ -250,7 +271,7 @@ function sing(x){ const t = String(x).trim(); return SINGOLARE[t.toLowerCase()] 
 const LS = 'casa-organizer-v1';
 let S = EMPTY();
 try { const r = localStorage.getItem(LS); if (r) S = norm(JSON.parse(r)); } catch (e) {}
-const hasContent = s => s.piatti.length || s.todo.length || Object.keys(s.orari).length || s.faccende.length || s.serali.length || s.scadenze.length || s.impegni.length || Object.keys(s.piani).length;
+const hasContent = s => s.piatti.length || s.agenda.length || Object.keys(s.orari).length || s.faccende.length || Object.keys(s.piani).length;
 
 /* ---------- salvataggio e sincronizzazione ---------- */
 let ref = null, timer = null, saving = false, again = false, readOnly = false, loaded = false;
@@ -304,15 +325,15 @@ function attachCloud(r){
     } else setStatus('ok');
   }, () => setStatus('err'));
 }
-// toccando la notifica di un impegno si arriva con ?silenzia=<id>: chiedo se fermare gli avvisi successivi
+// toccando una notifica si arriva con ?silenzia=<id>&il=<data>: chiedo se fermare gli altri avvisi per quella volta
 function checkSilenzia(){
-  const id = new URLSearchParams(location.search).get('silenzia'); if (!id) return;
-  const i = S.impegni.find(x => x.id === id); if (!i) return; // forse i dati non sono ancora arrivati
+  const q = new URLSearchParams(location.search), id = q.get('silenzia'), il = q.get('il'); if (!id || !il) return;
+  const v = S.agenda.find(x => x.id === id); if (!v) return; // forse i dati non sono ancora arrivati
   history.replaceState(null, '', location.pathname + location.hash);
-  if (i.muto) return;
-  ask(`Silenziare i prossimi avvisi per “${i.titolo}”?`, 'Silenzia').then(ok => {
-    const x = ok && S.impegni.find(y => y.id === id);
-    if (x){ x.muto = true; commit(); toast('Avvisi silenziati'); }
+  if (v.muto === il) return;
+  ask(`Silenziare i prossimi avvisi per “${v.titolo}”?`, 'Silenzia').then(ok => {
+    const x = ok && S.agenda.find(y => y.id === id);
+    if (x){ x.muto = il; commit(); toast('Avvisi silenziati'); }
   });
 }
 function detachCloud(){ if (unsub) unsub(); unsub = null; ref = null; loaded = false; clearTimeout(timer); timer = null; setStatus('local'); }
@@ -344,19 +365,6 @@ function mealFor(date, which){
   const wk = iso(monday(date)); const key = `${dayIdx(date)}-${which}`;
   return (S.piani[wk] || {})[key];
 }
-function scadStato(s){
-  const d = diffDays(parse(s.data), today());
-  const pre = Number(s.preavviso) || 0;
-  if (d < 0) return { cls:'late', d, txt: d === -1 ? 'Scaduta ieri' : `Scaduta da ${-d} giorni` };
-  if (d === 0) return { cls:'late', d, txt:'Scade oggi' };
-  if (d <= pre) return { cls:'soon', d, txt: d === 1 ? 'Scade domani' : `Tra ${d} giorni` };
-  return { cls:'ok', d, txt: d === 1 ? 'Domani' : `Tra ${d} giorni` };
-}
-const scadOrdinate = () => [...S.scadenze].sort((a,b) => a.data.localeCompare(b.data));
-function impegniDa(from, to){
-  return S.impegni.filter(i => i.data >= from && (!to || i.data <= to))
-    .sort((a,b) => (a.data + (a.ora||'')).localeCompare(b.data + (b.ora||'')));
-}
 function listaSpesa(wk){
   const plan = S.piani[wk] || {}; const m = new Map();
   for (const v of Object.values(plan)){
@@ -371,31 +379,6 @@ function listaSpesa(wk){
   return [...m.values()].sort((a,b) => a.k.localeCompare(b.k, 'it'));
 }
 
-/* ---------- link a Google Calendar ---------- */
-const ymd = d => `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
-function gcal({ text, date, time, details, recur }){
-  const p = new URLSearchParams({ action:'TEMPLATE', text });
-  if (time){
-    const [h, mi] = time.split(':').map(Number);
-    const s = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h, mi);
-    const e = new Date(s.getTime() + 3600000);
-    const f = x => `${ymd(x)}T${pad(x.getHours())}${pad(x.getMinutes())}00`;
-    p.set('dates', `${f(s)}/${f(e)}`);
-    try { p.set('ctz', Intl.DateTimeFormat().resolvedOptions().timeZone); } catch (e) {}
-  } else p.set('dates', `${ymd(date)}/${ymd(addDays(date,1))}`);
-  if (details) p.set('details', details);
-  if (recur) p.set('recur', 'RRULE:' + recur);
-  return 'https://calendar.google.com/calendar/render?' + p.toString();
-}
-function scadGcal(s){
-  const pre = Number(s.preavviso) || 0;
-  const date = addDays(parse(s.data), -pre);
-  const n = Number(s.ricorrenza) || 0;
-  const recur = !n ? '' : n === 12 ? 'FREQ=YEARLY' : n === 24 ? 'FREQ=YEARLY;INTERVAL=2' : `FREQ=MONTHLY;INTERVAL=${n}`;
-  const text = pre ? `${s.nome}: scade tra ${pre} giorni` : `${s.nome}: scade oggi`;
-  return gcal({ text, date, details: s.note || '', recur });
-}
-
 /* ---------- viste ---------- */
 let view = 'oggi', wOff = 0, showPast = false;
 const VIEWS = ['oggi','menu','spesa','casa','orari','agenda'];
@@ -404,8 +387,6 @@ function vOggi(){
   const t = today(), tm = addDays(t, 1);
   const p = mealFor(t,'p'), c = mealFor(t,'c');
   const pT = mealFor(tm,'p'), cT = mealFor(tm,'c');
-  const allerta = scadOrdinate().filter(s => scadStato(s).cls !== 'ok');
-  const prossimi = impegniDa(iso(t), iso(addDays(t,7)));
   const nextPlan = Object.keys(S.piani[wkKey(1)] || {}).length;
   const weekend = [0,6].includes(t.getDay());
   const meal = (w, v, which) => `<button class="meal" data-act="slot" data-wk="${iso(monday(t))}" data-key="${dayIdx(t)}-${which}" data-label="${cap(fmt(t,{weekday:'long'}))}, ${w.toLowerCase()}">
@@ -415,13 +396,13 @@ function vOggi(){
     <div class="meals">${meal('A pranzo', p, 'p')}${meal('A cena', c, 'c')}</div>`;
   const oT = turnoTxt(turnoDi(t)), oD = turnoTxt(turnoDi(tm));
   if (oT || oD) h += `<a class="orari" href="#orari" style="display:block;color:inherit;text-decoration:none">${CHI} oggi: <strong>${esc(oT || 'non segnato')}</strong>${oD ? `<br><span class="muted small">Domani: ${esc(oD)}</span>` : ''}</a>`;
-  const sera = S.serali.filter(r => seraleIl(r, tm)).sort((a,b) => (a.ora || '').localeCompare(b.ora || ''));
-  if (sera.length) h += `<ul class="list" style="margin-top:14px">${sera.map(r => `<li class="item soon"><div class="title">Stasera alle ${esc(r.ora || '21:30')}: ${esc(r.titolo)}</div>${r.nota ? `<div class="meta">${esc(r.nota)}</div>` : ''}</li>`).join('')}</ul>`;
+  const sera = stasera();
+  if (sera.length) h += `<ul class="list" style="margin-top:14px">${sera.map(v => `<li class="item soon"><div class="title">Stasera alle ${esc(v.sera)}: ${esc(v.titolo)}</div>${v.note ? `<div class="meta">${esc(v.note)}</div>` : ''}</li>`).join('')}</ul>`;
   if (pT || cT) h += `<p class="tomorrow">Domani: <strong>${esc(slotLabel(pT) || '–')}</strong> a pranzo, <strong>${esc(slotLabel(cT) || '–')}</strong> a cena</p>`;
 
   if (!hasContent(S)){
     h += `<div class="banner needs-write"><div><p><strong>Per cominciare</strong></p>
-      <ol class="steps"><li>Carica i piatti di esempio o aggiungi i vostri.</li><li>Riempi il menù della settimana: la lista della spesa si crea da sola.</li><li>Inserisci le scadenze fisse (bollo, assicurazione, compleanni) una volta sola.</li></ol></div>
+      <ol class="steps"><li>Carica i piatti di esempio o aggiungi i vostri.</li><li>Riempi il menù della settimana: la lista della spesa si crea da sola.</li><li>Segna in Agenda le cose da ricordare: bollo, raccolta differenziata, visite.</li></ol></div>
       <button class="btn" data-act="seed">Carica 23 piatti di esempio</button></div>`;
   } else if (weekend && nextPlan < 4){
     h += `<div class="banner needs-write"><p>Il weekend è il momento giusto per preparare il menù della prossima settimana.</p>
@@ -434,12 +415,12 @@ function vOggi(){
     h += `<h2>Casa, oggi</h2><p class="muted small">${fatte} di ${fac.length} fatte</p><div class="box">${fac.map(facRow).join('')}</div>`;
   }
 
-  h += `<h2>Da tenere d’occhio</h2>`;
-  h += allerta.length ? `<ul class="list">${allerta.map(scadItem).join('')}</ul>`
-    : `<p class="muted">Nessuna scadenza in arrivo. ${S.scadenze.length ? '' : '<a href="#agenda">Aggiungi le scadenze fisse</a> per non doverle ricordare.'}</p>`;
-
-  h += `<h2>Prossimi 7 giorni</h2>`;
-  h += prossimi.length ? `<ul class="list">${prossimi.map(impItem).join('')}</ul>` : `<p class="muted">Nessun impegno in calendario.</p>`;
+  const late = S.agenda.filter(inRitardo).sort(perData);
+  if (late.length) h += `<h2>In ritardo</h2><div class="box">${late.map(v => voceRow(v, v.data)).join('')}</div>`;
+  const ev = prossimi(t, 7).filter(([, v]) => v.ripeti !== 'sett');
+  h += `<h2>Prossimi 7 giorni</h2>` + (ev.length ? `<div class="box">${ev.map(([d, v]) => voceRow(v, d)).join('')}</div>` : `<p class="muted">Niente in agenda.</p>`);
+  const nTodo = daFare().length;
+  if (nTodo) h += `<p class="muted"><a href="#agenda">${nTodo === 1 ? 'Una cosa' : nTodo + ' cose'} da fare senza data</a></p>`;
   return h;
 }
 
@@ -491,42 +472,54 @@ function vSpesa(){
   return h;
 }
 
-function scadItem(s){
-  const st = scadStato(s);
-  return `<li class="item ${st.cls}"><div class="title">${esc(s.nome)}</div>
-    <div class="meta">${cap(fmt(parse(s.data),{day:'numeric', month:'long', year:'numeric'}))}, ${ricLabel(s.ricorrenza).toLowerCase()}</div>
-    <span class="tag ${st.cls}">${st.txt}</span>${s.note ? `<div class="meta">${esc(s.note)}</div>` : ''}
-    <div class="row-actions"><button class="btn small needs-write" data-act="done" data-id="${s.id}">Fatta</button>
-    <a class="btn small ghost" href="${scadGcal(s)}" target="_blank" rel="noopener">Aggiungi al calendario</a>
-    <button class="btn small ghost needs-write" data-act="scad" data-id="${s.id}">Modifica</button></div></li>`;
-}
-/* ---------- avvisi della sera prima (raccolta differenziata, divieti di sosta) ---------- */
+/* ---------- agenda: tutto quello che c'è da fare ---------- */
+// voce: { id, titolo, note, data, ora, ripeti, giorni, parita, avvisi, sera, muto, fatto }
+// ripeti '' = una volta (senza data è un semplice "da fare"); 'sett' = ogni settimana nei giorni scelti, anche solo con
+// data pari o dispari; '1','3','6','12','24' = ogni tanti mesi, e la data è la prossima volta (avanza quando la segni fatta).
+// avvisi: minuti prima (senza ora si conta dalle 9); sera: avviso la sera prima a quell'ora; muto: la volta silenziata.
 const IS_APP = true;
-const PARITA = { '': '', pari: ', con data pari', dispari: ', con data dispari' };
-// r.giorni: giorni della raccolta o del divieto (0 = lunedì); l'avviso è la sera prima, all'ora r.ora
-const seraleIl = (r, d) => (r.giorni || []).includes(dayIdx(d)) && (!r.parita || (d.getDate() % 2 === 0) === (r.parita === 'pari'));
-function prossimoSerale(r, da){ for (let i = 0; i < 70; i++){ const d = addDays(da, i); if (seraleIl(r, d)) return d; } return null; }
+const RIPETI = [['','Mai'],['sett','Ogni settimana'],['1','Ogni mese'],['3','Ogni 3 mesi'],['6','Ogni 6 mesi'],['12','Ogni anno'],['24','Ogni 2 anni']];
+const AVVISI = [[0,'All’ora'],[30,'30 minuti'],[60,'1 ora'],[120,'2 ore'],[1440,'1 giorno'],[10080,'1 settimana'],[43200,'1 mese']];
+const PARITA = { '': '', pari: ', solo date pari', dispari: ', solo date dispari' };
 const elenco = a => a.length > 1 ? a.slice(0, -1).join(', ') + ' e ' + a[a.length - 1] : (a[0] || '');
-const regolaTxt = r => cap(elenco([...(r.giorni || [])].sort((a,b) => a - b).map(i => GIORNI[i].toLowerCase()))) + PARITA[r.parita || ''] + `; avviso la sera prima alle ${r.ora || '21:30'}`;
-function seraleGcal(r){
-  const by = (r.giorni || []).map(g => ['MO','TU','WE','TH','FR','SA','SU'][(Number(g) + 6) % 7]).join(',');
-  let recur = `FREQ=WEEKLY;BYDAY=${by}`;
-  if (r.parita){ // stesso schema spostato di un giorno: il giorno 1 diventa l'ultimo del mese prima
-    const days = new Set(); for (let d = r.parita === 'pari' ? 2 : 1; d <= 31; d += 2) days.add(d === 1 ? -1 : d - 1);
-    recur = `FREQ=MONTHLY;BYDAY=${by};BYMONTHDAY=${[...days].join(',')}`;
-  }
-  const prox = prossimoSerale(r, addDays(today(), 1)) || addDays(today(), 1);
-  return gcal({ text: r.titolo, date: addDays(prox, -1), time: r.ora || '21:30', details: r.nota || '', recur });
+const settIl = (v, d) => (v.giorni || []).includes(dayIdx(d)) && (!v.parita || (d.getDate() % 2 === 0) === (v.parita === 'pari'));
+const mesi = v => v.ripeti && v.ripeti !== 'sett' ? Number(v.ripeti) : 0;
+const perData = (a, b) => (a.data + a.ora).localeCompare(b.data + b.ora);
+const inRitardo = v => !v.fatto && v.ripeti !== 'sett' && v.data && v.data < iso(today());
+const daFare = () => S.agenda.filter(v => !v.data && v.ripeti !== 'sett' && !v.fatto);
+const ripetiTxt = v => v.ripeti === 'sett' ? 'Ogni ' + elenco([...v.giorni].sort((a,b) => a - b).map(i => GIORNI[i].toLowerCase())) + PARITA[v.parita || ''] : mesi(v) ? RIPETI.find(r => r[0] === v.ripeti)[1] : '';
+function avvisiTxt(v){
+  const a = AVVISI.filter(([m]) => v.avvisi.includes(m)).map(([m, t]) => m ? t + ' prima' : 'all’ora');
+  if (v.sera) a.unshift(`la sera prima alle ${v.sera}`);
+  return a.length ? 'Avviso ' + elenco(a) : '';
 }
-function serItem(r){
-  const d = prossimoSerale(r, addDays(today(), 1)), dd = d ? diffDays(d, today()) : 99;
-  const st = dd === 1 ? 'soon' : 'ok';
-  return `<li class="item ${st}"><div class="title">${esc(r.titolo)}</div><div class="meta">${esc(regolaTxt(r))}</div>
-    ${d ? `<span class="tag ${st}">${dd === 1 ? 'Stasera' : 'Prossimo: la sera di ' + fmt(addDays(d, -1),{weekday:'long', day:'numeric', month:'long'})}</span>` : ''}
-    ${r.nota ? `<div class="meta">${esc(r.nota)}</div>` : ''}
-    <div class="row-actions">${IS_APP ? '' : `<a class="btn small ghost" href="${seraleGcal(r)}" target="_blank" rel="noopener">Promemoria nel calendario</a>`}
-    <button class="btn small ghost needs-write" data-act="ser" data-id="${r.id}">Modifica</button></div></li>`;
+// le volte in cui una voce capita tra due giorni (compresi)
+function occorrenze(v, da, a){
+  if (v.ripeti === 'sett'){ const out = []; for (let d = parse(da); iso(d) <= a; d = addDays(d, 1)) if (settIl(v, d)) out.push(iso(d)); return out; }
+  return v.data && !v.fatto && v.data >= da && v.data <= a ? [v.data] : [];
 }
+// quando va fatta: per gli avvisi della sera prima senza ora è la sera prima
+const momento = (v, d) => v.sera && !v.ora ? [iso(addDays(parse(d), -1)), v.sera] : [d, v.ora || ''];
+function quandoTxt(v, d){
+  const [g, o] = momento(v, d), dd = diffDays(parse(g), today());
+  if (v.sera && !v.ora) return (dd === 0 ? 'Stasera' : dd === 1 ? 'Domani sera' : cap(fmt(parse(g), {weekday:'long', day:'numeric'})) + ' sera') + ' alle ' + o;
+  return (dd === 0 ? 'Oggi' : dd === 1 ? 'Domani' : dd === -1 ? 'Ieri' : cap(fmt(parse(g), {weekday:'long', day:'numeric', month:'long'}))) + (o ? ' alle ' + o : '');
+}
+function prossimi(t, n){
+  const da = iso(t), a = iso(addDays(t, n - 1)), ev = [];
+  for (const v of S.agenda) for (const d of occorrenze(v, da, iso(addDays(t, n)))){ const [g] = momento(v, d); if (g >= da && g <= a) ev.push([d, v]); }
+  return ev.sort(([a, x], [b, y]) => momento(x, a).join(' ').localeCompare(momento(y, b).join(' ')));
+}
+const stasera = () => { const tm = iso(addDays(today(), 1)); return S.agenda.filter(v => v.sera && v.muto !== tm && occorrenze(v, tm, tm).length).sort((a,b) => a.sera.localeCompare(b.sera)); };
+// d: la volta mostrata ('' negli elenchi delle ricorrenze)
+function voceRow(v, d){
+  const meta = [d ? quandoTxt(v, d) : '', v.ripeti === 'sett' && d ? '' : ripetiTxt(v), d ? '' : avvisiTxt(v), v.note].filter(Boolean).join(' · ');
+  const st = inRitardo(v) ? 'late' : d && diffDays(parse(momento(v, d)[0]), today()) <= 1 ? 'soon' : '';
+  return `<div class="vrow ${st} ${v.fatto ? 'done' : ''}">${v.ripeti === 'sett' ? '<span class="vdot" aria-hidden="true">↻</span>'
+      : `<input type="checkbox" class="needs-write" data-act="tickVoce" data-id="${v.id}" ${v.fatto ? 'checked' : ''} aria-label="Fatto">`}
+    <button class="vtxt" data-act="voce" data-id="${v.id}"><span class="t">${esc(v.titolo)}</span>${meta ? `<span class="m">${esc(meta)}</span>` : ''}${d && v.muto === d ? '<span class="m">Avvisi silenziati</span>' : ''}</button></div>`;
+}
+const box = (rows) => `<div class="box">${rows.join('')}</div>`;
 
 /* ---------- orari di lavoro ---------- */
 const CHI = 'Valentina';
@@ -581,61 +574,33 @@ function vCasa(){
   return h;
 }
 
-const AVVISI = [[1440,'24 ore'],[120,'2 ore'],[60,'1 ora'],[30,'30 minuti']];
-function impItem(i){
-  const d = parse(i.data); const dd = diffDays(d, today());
-  const quando = dd === 0 ? 'Oggi' : dd === 1 ? 'Domani' : cap(fmt(d,{weekday:'long', day:'numeric', month:'long'}));
-  return `<li class="item ${dd <= 1 && dd >= 0 ? 'soon' : 'ok'}"><div class="title">${esc(i.titolo)}</div>
-    <div class="meta">${quando}${i.ora ? ' alle ' + esc(i.ora) : ''}${i.chi ? ', ' + esc(i.chi) : ''}</div>
-    ${IS_APP && (i.avvisi || []).length ? `<div class="meta">${i.muto ? 'Avvisi silenziati' : 'Avvisi: ' + AVVISI.filter(([m]) => i.avvisi.includes(m)).map(a => a[1]).join(', ') + ' prima'}</div>` : ''}
-    ${i.note ? `<div class="meta">${esc(i.note)}</div>` : ''}
-    <div class="row-actions"><a class="btn small ghost" href="${gcal({ text: i.titolo, date: d, time: i.ora, details: [i.chi, i.note].filter(Boolean).join('\n') })}" target="_blank" rel="noopener">Aggiungi al calendario</a>
-    <button class="btn small ghost needs-write" data-act="imp" data-id="${i.id}">Modifica</button></div></li>`;
-}
 function vAgenda(){
-  const t = today(), tIso = iso(t), fino = iso(addDays(t, 7));
-  const g = d => cap(fmt(parse(d), {weekday:'short', day:'numeric'}));
-  // in arrivo: tutto quello che c'è da fare nei prossimi 7 giorni, in ordine
-  const ev = [];
-  for (const i of impegniDa(tIso, fino)) ev.push({ d: i.data, o: i.ora || '', act: 'imp', id: i.id, t: i.titolo, m: i.note || i.chi || '' });
-  for (const s of S.scadenze){ const st = scadStato(s); if (s.data <= fino) ev.push({ d: s.data, o: '', act: 'scad', id: s.id, t: s.nome, m: 'Scadenza: ' + st.txt.toLowerCase() }); }
-  for (const r of S.serali) for (let i = 0; i < 7; i++){
-    const sera = addDays(t, i); if (seraleIl(r, addDays(sera, 1))) ev.push({ d: iso(sera), o: r.ora || '21:30', act: 'ser', id: r.id, t: r.titolo, m: 'la sera prima' });
+  const t = today(), fino = iso(addDays(t, 6));
+  let h = `<div class="bar needs-write" style="margin-top:14px"><button class="btn" data-act="voce">Aggiungi</button>${IS_APP ? '<button class="btn small ghost" data-act="notifiche">Attiva le notifiche qui</button>' : ''}</div>
+    <p class="muted small">Con data e ora è un impegno, se si ripete una ricorrenza, senza data una cosa da fare.</p>`;
+  const late = S.agenda.filter(inRitardo).sort(perData);
+  if (late.length) h += `<h2>In ritardo</h2>` + box(late.map(v => voceRow(v, v.data)));
+  const ev = prossimi(t, 7);
+  h += `<h2>Prossimi 7 giorni</h2>` + (ev.length ? box(ev.map(([d, v]) => voceRow(v, d))) : `<p class="muted">Niente in programma.</p>`);
+  const todo = daFare();
+  h += `<h2>Da fare</h2>` + (todo.length ? box(todo.map(v => voceRow(v, ''))) : `<p class="muted">Niente da fare. Beati voi.</p>`);
+  const dopo = S.agenda.filter(v => !v.fatto && v.ripeti !== 'sett' && v.data > fino).sort(perData);
+  if (dopo.length) h += `<h2>Più avanti</h2>` + box(dopo.map(v => voceRow(v, v.data)));
+  const sett = S.agenda.filter(v => v.ripeti === 'sett');
+  if (sett.length) h += `<h2>Ogni settimana</h2>` + box(sett.map(v => voceRow(v, '')));
+  const fatti = S.agenda.filter(v => v.fatto);
+  if (fatti.length){
+    h += `<div class="bar"><button class="btn small ghost" data-act="past">${showPast ? 'Nascondi' : 'Mostra'} le cose fatte (${fatti.length})</button>
+      ${showPast ? '<button class="btn small danger needs-write" data-act="clearFatti">Elimina le cose fatte</button>' : ''}</div>`;
+    if (showPast) h += box(fatti.map(v => voceRow(v, '')));
   }
-  ev.sort((a,b) => (a.d + a.o).localeCompare(b.d + b.o));
-  let h = `<h2>In arrivo</h2>`;
-  h += ev.length ? `<div class="box">${ev.map(e => `<button class="arow" data-act="${e.act}" data-id="${e.id}"><span class="q"><b>${e.d === tIso ? 'Oggi' : esc(g(e.d))}</b>${esc(e.o)}</span><span><span class="t">${esc(e.t)}</span>${e.m ? `<span class="m">${esc(e.m)}</span>` : ''}</span></button>`).join('')}</div>`
-    : `<p class="muted">Niente nei prossimi 7 giorni.</p>`;
-
-  h += `<h2>Da fare</h2>
-    <div class="addrow needs-write"><input type="text" id="todoIn" placeholder="Cambiare la lampadina, chiamare l’idraulico…" autocomplete="off"><button class="btn" data-act="addTodo">Aggiungi</button></div>`;
-  if (S.todo.length){
-    h += `<div class="box">${[...S.todo].sort((a,b) => a.f - b.f).map(x => `<label class="check ${x.f ? 'done' : ''}"><input type="checkbox" data-act="tickTodo" data-id="${x.id}" ${x.f ? 'checked' : ''}><span class="name">${esc(x.t)}</span></label>`).join('')}</div>`;
-    if (S.todo.some(x => x.f)) h += `<div class="bar needs-write"><button class="btn small ghost" data-act="clearTodo">Togli quelle fatte</button></div>`;
-  } else h += `<p class="muted">Niente da fare. Beati voi.</p>`;
-
-  const futuri = impegniDa(tIso); const passati = S.impegni.filter(i => i.data < tIso).sort((a,b) => b.data.localeCompare(a.data));
-  h += `<h2>Impegni</h2><p class="muted small">Visite, feste, appuntamenti: quelli che capitano una volta.</p>
-    <div class="bar needs-write"><button class="btn small" data-act="imp">Aggiungi impegno</button></div>`;
-  h += futuri.length ? `<ul class="list">${futuri.map(impItem).join('')}</ul>` : `<p class="muted">Nessun impegno in programma.</p>`;
-  if (passati.length){
-    h += `<div class="bar"><button class="btn small ghost" data-act="past">${showPast ? 'Nascondi' : 'Mostra'} i passati (${passati.length})</button>
-      ${showPast ? '<button class="btn small danger needs-write" data-act="clearPast">Elimina i passati</button>' : ''}</div>`;
-    if (showPast) h += `<ul class="list">${passati.map(impItem).join('')}</ul>`;
-  }
-
-  h += `<h2>Ricorrenti</h2><p class="muted small">Le <strong>scadenze</strong> (bollo, assicurazione, compleanni) passano da sole alla data dopo quando segni “Fatta”. Gli <strong>avvisi della sera prima</strong> (raccolta differenziata, divieti di sosta) compaiono in Oggi${IS_APP ? ' e arrivano come notifica' : ''}.</p>
-    <div class="bar needs-write"><button class="btn small" data-act="ser">Aggiungi avviso serale</button><button class="btn small ghost" data-act="scad">Aggiungi scadenza</button>${IS_APP ? '<button class="btn small ghost" data-act="notifiche">Attiva le notifiche qui</button>' : ''}</div>`;
-  const ser = [...S.serali].sort((a,b) => (prossimoSerale(a, addDays(t,1)) || 0) - (prossimoSerale(b, addDays(t,1)) || 0));
-  if (ser.length || S.scadenze.length) h += `<ul class="list">${ser.map(serItem).join('')}${scadOrdinate().map(scadItem).join('')}</ul>`;
-  else h += `<p class="muted">Nessuna ricorrenza.</p>`;
   return h;
 }
 
 function render(){
   $('#view').innerHTML = { oggi: vOggi, menu: vMenu, spesa: vSpesa, casa: vCasa, orari: vOrari, agenda: vAgenda }[view]();
   document.querySelectorAll('nav.tabs a').forEach(a => { if (a.dataset.tab === view) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
-  $('#dotAg').hidden = !S.scadenze.some(s => scadStato(s).cls !== 'ok') && !S.serali.some(r => seraleIl(r, addDays(today(), 1)));
+  $('#dotAg').hidden = !S.agenda.some(inRitardo) && !stasera().length;
 }
 function route(){
   const h = (location.hash || '').replace('#','');
@@ -745,100 +710,58 @@ function turnoDlg(wk, i){
   });
 }
 
-/* ---------- dialog: avviso della sera prima ---------- */
-function serDlg(id){
-  const r = id ? S.serali.find(x => x.id === id) : null;
-  const g = new Set(r ? r.giorni : []);
-  openDlg(`<h2>${r ? 'Modifica avviso' : 'Nuovo avviso della sera prima'}</h2>
-    <label class="f">Cosa fare la sera prima<input type="text" id="n" value="${r ? esc(r.titolo) : ''}" placeholder="Metti fuori la plastica"></label>
-    <p class="muted small" style="margin:0">Giorno della raccolta o del divieto</p>
-    <div class="chips" id="gg">${GIORNI.map((x,i) => `<label class="chip"><input type="checkbox" value="${i}" ${g.has(i) ? 'checked' : ''}>${x.slice(0,3)}</label>`).join('')}</div>
-    <div class="two"><label class="f">Quali settimane<select id="pa"><option value="">Tutte</option><option value="pari">Solo data pari</option><option value="dispari">Solo data dispari</option></select></label>
-    <label class="f">Avviso alle<input type="time" id="o" value="${r ? esc(r.ora || '21:30') : '21:30'}"></label></div>
-    <label class="f">Nota (facoltativa)<input type="text" id="no" value="${r ? esc(r.nota || '') : ''}"></label>
-    <div class="dlg-actions">${r ? '<button type="button" class="btn danger" id="del">Elimina</button>' : ''}<span class="spacer"></span>
-    <button type="button" class="btn ghost" id="cls">Annulla</button><button type="button" class="btn" id="ok">Salva</button></div>`, d => {
-    d.querySelector('#pa').value = r ? (r.parita || '') : '';
-    d.querySelector('#cls').addEventListener('click', closeDlg);
-    d.querySelector('#ok').addEventListener('click', () => {
-      const titolo = d.querySelector('#n').value.trim(); if (!titolo){ d.querySelector('#n').focus(); return; }
-      const giorni = [...d.querySelectorAll('#gg input:checked')].map(x => Number(x.value));
-      if (!giorni.length){ toast('Scegli almeno un giorno'); return; }
-      const o = { titolo, giorni, parita: d.querySelector('#pa').value, ora: d.querySelector('#o').value || '21:30', nota: d.querySelector('#no').value.trim() };
-      if (r) Object.assign(r, o); else S.serali.push({ id: uid(), ...o });
-      closeDlg(); commit(); toast('Avviso salvato');
+/* ---------- dialog: voce dell'agenda ---------- */
+function voceDlg(id){
+  const v = id ? S.agenda.find(x => x.id === id) : null;
+  const g = new Set(v ? v.giorni : []), av = new Set(v ? v.avvisi : []);
+  openDlg(`<h2>${v ? 'Modifica' : 'Aggiungi'}</h2>
+    <label class="f">Cosa<input type="text" id="t" value="${v ? esc(v.titolo) : ''}" placeholder="Pediatra, bollo auto, chiamare l’idraulico…"></label>
+    <div class="two"><label class="f" id="dBox">Giorno<input type="date" id="d" value="${v ? v.data : ''}"></label>
+    <label class="f">Ora<input type="time" id="o" value="${v ? esc(v.ora) : ''}"></label></div>
+    <label class="f">Si ripete<select id="r">${RIPETI.map(([k, l]) => `<option value="${k}" ${v && v.ripeti === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    <div id="sBox"><div class="chips" id="gg">${GIORNI.map((x,i) => `<label class="chip"><input type="checkbox" value="${i}" ${g.has(i) ? 'checked' : ''}>${x.slice(0,3)}</label>`).join('')}</div>
+    <label class="f">Quali date<select id="pa"><option value="">Tutte</option><option value="pari">Solo date pari</option><option value="dispari">Solo date dispari</option></select></label></div>
+    <div id="aBox">${IS_APP ? `<p class="muted small" style="margin:0">Avvisami (senza ora si conta dalle 9)</p>
+    <div class="chips" id="av">${AVVISI.map(([m, l]) => `<label class="chip"><input type="checkbox" value="${m}" ${av.has(m) ? 'checked' : ''}>${m ? l + ' prima' : l}</label>`).join('')}</div>` : ''}
+    <div class="chips"><label class="chip"><input type="checkbox" id="se" ${v && v.sera ? 'checked' : ''}>La sera prima alle</label><input type="time" id="so" value="${v && v.sera ? esc(v.sera) : '21:30'}" style="width:auto"></div>
+    ${v && v.muto ? '<label class="chip"><input type="checkbox" id="mu" checked>Avvisi silenziati per questa volta</label>' : ''}</div>
+    <p class="muted small" id="hint"></p>
+    <label class="f">Note<textarea id="no" style="min-height:60px" placeholder="Cosa portare, indirizzo, targa…">${v ? esc(v.note) : ''}</textarea></label>
+    <div class="dlg-actions">${v ? '<button type="button" class="btn danger" id="del">Elimina</button>' : ''}<span class="spacer"></span>
+    <button type="button" class="btn ghost" id="cls">Annulla</button><button type="button" class="btn" id="ok">Salva</button></div>`, dl => {
+    const q = s => dl.querySelector(s);
+    q('#pa').value = v ? v.parita : '';
+    const sync = () => {
+      const r = q('#r').value, sett = r === 'sett';
+      q('#dBox').hidden = sett; q('#sBox').hidden = !sett;
+      q('#aBox').hidden = !sett && !q('#d').value;
+      q('#hint').textContent = !sett && !q('#d').value ? (r ? 'Scegli il giorno della prossima volta.' : 'Senza giorno finisce tra le cose da fare.') : '';
+    };
+    q('#r').addEventListener('change', () => {
+      if (q('#r').value === 'sett' && !q('#gg input:checked') && q('#d').value) q(`#gg input[value="${dayIdx(parse(q('#d').value))}"]`).checked = true;
+      sync();
     });
-    if (r) d.querySelector('#del').addEventListener('click', async () => {
-      if (!await ask(`Eliminare “${r.titolo}”?`, 'Elimina')) return;
-      S.serali = S.serali.filter(x => x.id !== r.id); closeDlg(); commit(); toast('Avviso eliminato');
+    q('#d').addEventListener('input', sync); sync();
+    q('#cls').addEventListener('click', closeDlg);
+    q('#ok').addEventListener('click', () => {
+      const titolo = q('#t').value.trim(); if (!titolo){ q('#t').focus(); return; }
+      const ripeti = q('#r').value, sett = ripeti === 'sett';
+      const o = { titolo, ripeti, ora: q('#o').value, note: q('#no').value.trim(), data: sett ? '' : q('#d').value,
+        giorni: sett ? [...dl.querySelectorAll('#gg input:checked')].map(x => +x.value) : [], parita: sett ? q('#pa').value : '' };
+      if (sett && !o.giorni.length){ toast('Scegli almeno un giorno'); return; }
+      if (mesi(o) && !o.data){ q('#d').focus(); toast('Manca il giorno della prossima volta'); return; }
+      const conAvvisi = sett || o.data;
+      o.avvisi = conAvvisi ? [...dl.querySelectorAll('#av input:checked')].map(x => +x.value) : [];
+      o.sera = conAvvisi && q('#se').checked ? (q('#so').value || '21:30') : '';
+      o.muto = q('#mu') && q('#mu').checked ? v.muto : '';
+      if (v) Object.assign(v, o); else S.agenda.push({ id: uid(), fatto: false, ...o });
+      closeDlg(); commit(); toast('Salvato');
     });
-  });
-}
-
-/* ---------- dialog: scadenza ---------- */
-const MODELLI = [['Bollo auto',12,30],['Assicurazione auto',12,30],['Revisione auto',24,30],['Tagliando auto',12,21],['Manutenzione caldaia',12,30],['IMU',6,14],['Dichiarazione dei redditi',12,30],['Carta d’identità',0,60],['Compleanno di…',12,10],['Anniversario',12,10],['Rata del mutuo',1,3],['Prenotare visita dal pediatra',0,7]];
-function scadDlg(id){
-  const s = id ? S.scadenze.find(x => x.id === id) : null;
-  openDlg(`<h2>${s ? 'Modifica scadenza' : 'Nuova scadenza'}</h2>
-    ${s ? '' : `<p class="muted small">Scegli un modello o scrivi tu:</p><div class="chips">${MODELLI.map((m,i) => `<button type="button" class="chip" data-m="${i}">${m[0]}</button>`).join('')}</div>`}
-    <label class="f">Cosa scade<input type="text" id="n" value="${s ? esc(s.nome) : ''}"></label>
-    <div class="two"><label class="f">Data<input type="date" id="d" value="${s ? s.data : ''}"></label>
-    <label class="f">Avvisami prima di (giorni)<input type="number" id="p" min="0" max="365" value="${s ? Number(s.preavviso)||0 : 14}"></label></div>
-    <label class="f">Si ripete<select id="r">${RIC.map(r => `<option value="${r[0]}" ${s && Number(s.ricorrenza) === r[0] ? 'selected' : ''}>${r[1]}</option>`).join('')}</select></label>
-    <label class="f">Note<textarea id="no" style="min-height:70px" placeholder="Targa, numero polizza, dove si paga…">${s ? esc(s.note || '') : ''}</textarea></label>
-    <div class="dlg-actions">${s ? '<button type="button" class="btn danger" id="del">Elimina</button>' : ''}<span class="spacer"></span>
-    <button type="button" class="btn ghost" id="cls">Annulla</button><button type="button" class="btn" id="ok">Salva</button></div>`, d => {
-    d.querySelectorAll('[data-m]').forEach(c => c.addEventListener('click', () => {
-      const m = MODELLI[+c.dataset.m]; d.querySelector('#n').value = m[0].replace('…',' '); d.querySelector('#r').value = m[1]; d.querySelector('#p').value = m[2];
-      d.querySelector(m[0].endsWith('…') ? '#n' : '#d').focus();
-    }));
-    d.querySelector('#cls').addEventListener('click', closeDlg);
-    d.querySelector('#ok').addEventListener('click', () => {
-      const nome = d.querySelector('#n').value.trim(), data = d.querySelector('#d').value;
-      if (!nome){ d.querySelector('#n').focus(); return; }
-      if (!data){ d.querySelector('#d').focus(); toast('Manca la data'); return; }
-      const o = { nome, data, ricorrenza: Number(d.querySelector('#r').value), preavviso: Math.max(0, Number(d.querySelector('#p').value) || 0), note: d.querySelector('#no').value.trim() };
-      if (s) Object.assign(s, o); else S.scadenze.push({ id: uid(), ...o });
-      closeDlg(); commit(); toast('Scadenza salvata');
+    if (v) q('#del').addEventListener('click', async () => {
+      if (!await ask(`Eliminare “${v.titolo}”?`, 'Elimina')) return;
+      S.agenda = S.agenda.filter(x => x.id !== v.id); closeDlg(); commit(); toast('Eliminato');
     });
-    if (s) d.querySelector('#del').addEventListener('click', async () => {
-      if (!await ask(`Eliminare “${s.nome}”?`, 'Elimina')) return;
-      S.scadenze = S.scadenze.filter(x => x.id !== s.id); closeDlg(); commit(); toast('Scadenza eliminata');
-    });
-  });
-}
-
-/* ---------- dialog: impegno ---------- */
-function impDlg(id){
-  const i = id ? S.impegni.find(x => x.id === id) : null;
-  openDlg(`<h2>${i ? 'Modifica impegno' : 'Nuovo impegno'}</h2>
-    <label class="f">Cosa<input type="text" id="t" value="${i ? esc(i.titolo) : ''}" placeholder="Colloquio con la maestra"></label>
-    <div class="two"><label class="f">Giorno<input type="date" id="d" value="${i ? i.data : iso(today())}"></label>
-    <label class="f">Ora (facoltativa)<input type="time" id="o" value="${i ? esc(i.ora || '') : ''}"></label></div>
-    <label class="f">Chi è coinvolto<input type="text" id="c" value="${i ? esc(i.chi || '') : ''}" placeholder="Io, Giulia, tutti…"></label>
-    <label class="f">Note<textarea id="no" style="min-height:70px" placeholder="Cosa portare, indirizzo…">${i ? esc(i.note || '') : ''}</textarea></label>
-    ${IS_APP ? `<p class="muted small">Avvisami prima (senza ora, conta dalle 9 del giorno):</p>
-    <div class="chips" id="av">${AVVISI.map(([m,t]) => `<label class="chip"><input type="checkbox" value="${m}" ${i && (i.avvisi || []).includes(m) ? 'checked' : ''}>${t}</label>`).join('')}</div>
-    ${i && i.muto ? '<label class="chip"><input type="checkbox" id="mu" checked>Avvisi silenziati</label>' : ''}` : ''}
-    <div class="dlg-actions">${i ? '<button type="button" class="btn danger" id="del">Elimina</button>' : ''}<span class="spacer"></span>
-    <button type="button" class="btn ghost" id="cls">Annulla</button><button type="button" class="btn" id="ok">Salva</button></div>`, d => {
-    d.querySelector('#cls').addEventListener('click', closeDlg);
-    d.querySelector('#ok').addEventListener('click', () => {
-      const titolo = d.querySelector('#t').value.trim(), data = d.querySelector('#d').value;
-      if (!titolo){ d.querySelector('#t').focus(); return; }
-      if (!data){ d.querySelector('#d').focus(); return; }
-      const o = { titolo, data, ora: d.querySelector('#o').value, chi: d.querySelector('#c').value.trim(), note: d.querySelector('#no').value.trim() };
-      if (IS_APP){
-        o.avvisi = [...d.querySelectorAll('#av input:checked')].map(x => +x.value);
-        const mu = d.querySelector('#mu'); o.muto = !!(mu && mu.checked);
-      }
-      if (i) Object.assign(i, o); else S.impegni.push({ id: uid(), ...o });
-      closeDlg(); commit(); toast('Impegno salvato');
-    });
-    if (i) d.querySelector('#del').addEventListener('click', async () => {
-      if (!await ask(`Eliminare “${i.titolo}”?`, 'Elimina')) return;
-      S.impegni = S.impegni.filter(x => x.id !== i.id); closeDlg(); commit(); toast('Impegno eliminato');
-    });
+    if (!v) q('#t').focus();
   });
 }
 
@@ -912,11 +835,6 @@ async function copyList(){
     });
   }
 }
-function addTodo(){
-  const el = $('#todoIn'); const v = el && el.value.trim(); if (!v) return;
-  S.todo.push({ id: uid(), t: v, f: false }); commit();
-  const n = $('#todoIn'); if (n) n.focus();
-}
 function addExtra(){
   const el = $('#extraIn'); const v = el && el.value.trim(); if (!v) return;
   S.spesaExtra.push({ id: uid(), t: v, f: false }); commit();
@@ -936,31 +854,15 @@ document.addEventListener('click', e => {
     case 'dish': dishDlg(b.dataset.id); break;
     case 'copy': copyList(); break;
     case 'addExtra': addExtra(); break;
-    case 'addTodo': addTodo(); break;
-    case 'clearTodo': S.todo = S.todo.filter(x => !x.f); commit(); break;
     case 'clearExtra': S.spesaExtra = S.spesaExtra.filter(x => !x.f); commit(); break;
     case 'fac': facDlg(b.dataset.id); break;
-    case 'ser': serDlg(b.dataset.id); break;
     case 'turno': turnoDlg(b.dataset.wk, b.dataset.i); break;
     case 'copiaOrari': copiaOrari(); break;
     case 'svuotaOrari': { const wk = wkKey(wOff); ask('Togliere tutti gli orari di questa settimana?', 'Svuota').then(ok => { if (ok){ delete S.orari[wk]; commit(); } }); break; }
     case 'notifiche': if (window.casaCloud) window.casaCloud.attivaNotifiche(); else toast('Accedi per attivare le notifiche'); break;
-    case 'scad': scadDlg(b.dataset.id); break;
-    case 'imp': impDlg(b.dataset.id); break;
+    case 'voce': if (readOnly) return; voceDlg(b.dataset.id); break;
     case 'past': showPast = !showPast; render(); break;
-    case 'clearPast': ask('Eliminare tutti gli impegni passati?', 'Elimina').then(ok => { if (ok){ const t = iso(today()); S.impegni = S.impegni.filter(i => i.data >= t); commit(); } }); break;
-    case 'done': {
-      const s = S.scadenze.find(x => x.id === b.dataset.id); if (!s) return;
-      const n = Number(s.ricorrenza) || 0;
-      if (n){
-        let d = addMonths(parse(s.data), n);
-        while (d < today()) d = addMonths(d, n);
-        s.data = iso(d); commit(); toast(`Fatta. Prossima: ${fmt(d,{day:'numeric', month:'long', year:'numeric'})}`);
-      } else ask(`“${s.nome}” è fatta? Verrà tolta dall’elenco.`, 'Sì, fatta').then(ok => {
-        if (ok){ S.scadenze = S.scadenze.filter(x => x.id !== s.id); commit(); toast('Fatta e archiviata'); }
-      });
-      break;
-    }
+    case 'clearFatti': ask('Eliminare tutte le cose fatte?', 'Elimina').then(ok => { if (ok){ S.agenda = S.agenda.filter(v => !v.fatto); commit(); } }); break;
   }
 });
 document.addEventListener('change', e => {
@@ -970,8 +872,14 @@ document.addEventListener('change', e => {
     const wk = b.dataset.wk, k = b.dataset.k; S.spesaSpunte[wk] = S.spesaSpunte[wk] || {};
     if (b.checked) S.spesaSpunte[wk][k] = true; else delete S.spesaSpunte[wk][k];
     commit();
-  } else if (b.dataset.act === 'tickTodo'){
-    const x = S.todo.find(x => x.id === b.dataset.id); if (x){ x.f = b.checked; commit(); }
+  } else if (b.dataset.act === 'tickVoce'){
+    const v = S.agenda.find(x => x.id === b.dataset.id); if (!v) return;
+    const n = mesi(v);
+    if (n && b.checked){ // le ricorrenze mensili o annuali passano alla volta dopo
+      let d = addMonths(parse(v.data), n); while (d < today()) d = addMonths(d, n);
+      v.data = iso(d); v.muto = ''; toast(`Fatta. Prossima: ${fmt(d,{day:'numeric', month:'long', year:'numeric'})}`);
+    } else v.fatto = b.checked;
+    commit();
   } else if (b.dataset.act === 'tickExtra'){
     const x = S.spesaExtra.find(x => x.id === b.dataset.id); if (x){ x.f = b.checked; commit(); }
   } else if (b.dataset.act === 'tickFac'){
@@ -980,8 +888,7 @@ document.addEventListener('change', e => {
     commit();
   }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'extraIn'){ e.preventDefault(); addExtra(); }
-  if (e.key === 'Enter' && e.target.id === 'todoIn'){ e.preventDefault(); addTodo(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'extraIn'){ e.preventDefault(); addExtra(); } });
 
 route(); checkSilenzia();
 window.casaApp = { attachCloud, detachCloud, importa, getState: () => S, openDlg, closeDlg, toast, ask, setStatus };
