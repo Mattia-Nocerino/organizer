@@ -860,13 +860,17 @@ function autofill(){
   const wk = wkKey(wOff); const plan = S.piani[wk] = S.piani[wk] || {};
   const used = new Set(Object.values(plan).filter(v => v && v.id).map(v => v.id));
   const shuffle = a => { for (let i = a.length-1; i > 0; i--){ const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]] = [a[j],a[i]]; } return a; };
-  // primi a pranzo, secondi a cena; il piatto unico va bene per entrambi
-  const fits = (p, w) => { const t = tipoDi(p); return t === 'unico' || t === (w === 'p' ? 'primo' : 'secondo'); };
+  // primi a pranzo, secondi a cena; il piatto unico va bene per entrambi.
+  // A pranzo mai la pizza né un secondo da solo (Mattia)
+  const ammesso = (p, w) => w === 'c' || (tipoDi(p) !== 'secondo' && !/^pizz/i.test(p.nome));
+  const fits = (p, w) => { const t = tipoDi(p); return ammesso(p, w) && (t === 'unico' || t === (w === 'p' ? 'primo' : 'secondo')); };
   const draw = w => {
-    let c = S.piatti.filter(p => fits(p, w) && !used.has(p.id));
-    if (!c.length) c = S.piatti.filter(p => fits(p, w));
-    if (!c.length) c = S.piatti.filter(p => !used.has(p.id));
-    if (!c.length) c = S.piatti;
+    const ok = S.piatti.filter(p => ammesso(p, w));
+    let c = ok.filter(p => fits(p, w) && !used.has(p.id));
+    if (!c.length) c = ok.filter(p => fits(p, w));
+    if (!c.length) c = ok.filter(p => !used.has(p.id));
+    if (!c.length) c = ok;
+    if (!c.length) return null;
     const id = shuffle([...c])[0].id; used.add(id); return id;
   };
   let n = 0;
@@ -874,7 +878,8 @@ function autofill(){
     const k = `${i}-${w}`;
     if (wOff === 0 && i < dayIdx(today())) continue;
     if (plan[k]) continue;
-    plan[k] = { id: draw(w) }; n++;
+    const id = draw(w); if (!id) continue;
+    plan[k] = { id }; n++;
   }
   commit(); toast(n ? `${n} pasti aggiunti: tocca un pasto per cambiarlo` : 'La settimana è già piena');
 }
