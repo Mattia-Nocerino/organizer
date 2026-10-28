@@ -130,7 +130,7 @@ async function start(){
       const id = [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 40);
       await F.setDoc(F.doc(db, 'utenti', user.uid, 'dispositivi', id), { token, ua: navigator.userAgent.slice(0, 200), aggiornato: new Date().toISOString() });
       app.toast('Notifiche attive su questo dispositivo');
-    } catch (e){ app.toast('Non sono riuscito ad attivare le notifiche'); }
+    } catch (e){ console.error(e); app.toast(('Non sono riuscito ad attivare le notifiche: ' + ((e && (e.code || e.message)) || e)).slice(0, 200)); }
   }
   // ad app aperta Firebase non mostra la notifica: la faccio comparire come avviso in basso
   M.isSupported().then(ok => { if (ok) M.onMessage(M.getMessaging(fb), p => app.toast((p.notification && [p.notification.title, p.notification.body].filter(Boolean).join(': ')) || 'Promemoria')); }).catch(() => {});
