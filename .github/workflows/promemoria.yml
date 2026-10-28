@@ -2,14 +2,16 @@ name: Promemoria
 
 on:
   schedule:
-    # ogni 10 minuti, tutto il giorno: gli avvisi dell'agenda
+    # ogni 10 minuti, tutto il giorno: gli avvisi dell'agenda. GitHub però salta o ritarda spesso
+    # le esecuzioni programmate, quindi il giro affidabile è un servizio esterno (cron-job.org)
+    # che chiama workflow_dispatch ogni 10 minuti: vedi il README.
     - cron: '*/10 * * * *'
   workflow_dispatch:
     inputs:
       prova:
         description: 'Manda una notifica di prova adesso'
         type: boolean
-        default: true
+        default: false
 
 concurrency: promemoria
 
