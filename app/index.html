@@ -241,8 +241,12 @@ function norm(o){
   // vecchio formato: i divieti di sosta diventano avvisi della sera prima
   if (Array.isArray(o.divieti) && o.divieti.length && !e.serali.length)
     e.serali = o.divieti.map(r => ({ id: r.id, titolo: `Sposta la macchina da ${r.via}`, giorni: [Number(r.giorno)], parita: r.ord, ora: '22:30', nota: '' }));
+  for (const p of e.piatti) if (Array.isArray(p.ingredienti)) p.ingredienti = [...new Set(p.ingredienti.map(sing))];
   return e;
 }
+// gli ingredienti si tengono al singolare, così nella spesa non compaiono due volte (carota e carote)
+const SINGOLARE = { 'carote':'carota', 'patate':'patata', 'zucchine':'zucchina', 'uova':'uovo', 'pomodorini':'pomodorino', 'cosce di pollo':'coscia di pollo', 'fettine di tacchino':'fettina di tacchino', 'filetti di merluzzo':'filetto di merluzzo', 'cipolle':'cipolla', 'melanzane':'melanzana', 'peperoni':'peperone', 'pomodori':'pomodoro', 'mele':'mela', 'pere':'pera', 'banane':'banana', 'limoni':'limone', 'arance':'arancia', 'salsicce':'salsiccia', 'scaloppine':'scaloppina', 'fettine di pollo':'fettina di pollo', 'fettine di vitello':'fettina di vitello', 'filetti di platessa':'filetto di platessa', 'filetti di salmone':'filetto di salmone', 'sottilette':'sottiletta', 'finocchi':'finocchio', 'porri':'porro', 'funghi':'fungo', 'cetrioli':'cetriolo', 'cotolette':'cotoletta', 'polpette':'polpetta' };
+function sing(x){ const t = String(x).trim(); return SINGOLARE[t.toLowerCase()] || t; }
 const LS = 'casa-organizer-v1';
 let S = EMPTY();
 try { const r = localStorage.getItem(LS); if (r) S = norm(JSON.parse(r)); } catch (e) {}
@@ -358,7 +362,7 @@ function listaSpesa(wk){
   for (const v of Object.values(plan)){
     if (!v || !v.id) continue; const p = piatto(v.id); if (!p) continue;
     for (const ing of p.ingredienti || []){
-      const nome = String(ing).trim(); const k = nome.toLowerCase(); if (!k) continue;
+      const nome = sing(ing); const k = nome.toLowerCase(); if (!k) continue;
       const e = m.get(k) || { k, nome, piatti: [] };
       if (!e.piatti.includes(p.nome)) e.piatti.push(p.nome);
       m.set(k, e);
@@ -682,7 +686,7 @@ function dishDlg(id){
     d.querySelector('#ok').addEventListener('click', () => {
       const nome = d.querySelector('#n').value.trim(); if (!nome){ d.querySelector('#n').focus(); return; }
       const tipo = d.querySelector('#tp').value;
-      const ingredienti = d.querySelector('#ing').value.split('\n').map(s => s.trim()).filter(Boolean);
+      const ingredienti = [...new Set(d.querySelector('#ing').value.split('\n').map(s => s.trim()).filter(Boolean).map(sing))];
       if (p){ p.nome = nome; p.tipo = tipo; p.ingredienti = ingredienti; delete p.note; } else S.piatti.push({ id: uid(), nome, tipo, ingredienti });
       closeDlg(); commit(); toast('Piatto salvato');
     });
@@ -841,27 +845,27 @@ function impDlg(id){
 /* ---------- piatti di esempio ---------- */
 const ESEMPI = [
   ['Pastina e piselli in brodo (Bimby)',['pastina','piselli','verdure per brodo','parmigiano']],
-  ['Pasta al pomodoro con tonno e zucchine',['pasta','passata di pomodoro','tonno','zucchine']],
-  ['Pasta e ceci (Bimby)',['pasta corta','ceci','carote','rosmarino','aglio']],
+  ['Pasta al pomodoro con tonno e zucchine',['pasta','passata di pomodoro','tonno','zucchina']],
+  ['Pasta e ceci (Bimby)',['pasta corta','ceci','carota','rosmarino','aglio']],
   ['Pasta zucca e ricotta',['pasta corta','zucca','ricotta','cipolla','parmigiano']],
-  ['Pollo al forno con patate e carote',['cosce di pollo','patate','carote','rosmarino']],
-  ['Frittata di zucchine al forno con pane',['uova','zucchine','parmigiano','pane']],
-  ['Polpette al sugo con piselli (Bimby)',['carne macinata','uova','pangrattato','passata di pomodoro','piselli','pane']],
+  ['Pollo al forno con patate e carote',['coscia di pollo','patata','carota','rosmarino']],
+  ['Frittata di zucchine al forno con pane',['uovo','zucchina','parmigiano','pane']],
+  ['Polpette al sugo con piselli (Bimby)',['carne macinata','uovo','pangrattato','passata di pomodoro','piselli','pane']],
   ['Minestrone con pasta e fagioli (Bimby)',['verdure per minestrone','fagioli borlotti','pasta corta','parmigiano']],
-  ['Petto di pollo con riso e verdure',['petto di pollo','riso','zucchine','carote']],
-  ['Salmone al forno con patate e fagiolini',['salmone','patate','fagiolini','limone']],
-  ['Pizza con verdure',['impasto per pizza pronto','mozzarella','passata di pomodoro','zucchine']],
+  ['Petto di pollo con riso e verdure',['petto di pollo','riso','zucchina','carota']],
+  ['Salmone al forno con patate e fagiolini',['salmone','patata','fagiolini','limone']],
+  ['Pizza con verdure',['impasto per pizza pronto','mozzarella','passata di pomodoro','zucchina']],
   ['Pasta ricotta e spinaci',['pasta','ricotta','spinaci','parmigiano']],
   ['Pasta e lenticchie (Bimby)',['pasta corta','lenticchie','carota','sedano','cipolla']],
-  ['Tacchino al limone con riso e carote',['fettine di tacchino','limone','riso','carote']],
-  ['Orata al forno con patate e pomodorini',['orata','patate','pomodorini','limone']],
-  ['Merluzzo al forno con patate e zucchine',['filetti di merluzzo','patate','zucchine','limone']],
-  ['Uova strapazzate con spinaci e pane',['uova','spinaci','pane']],
-  ['Tortellini in brodo con verdure',['tortellini','brodo di carne','carote','zucchine','parmigiano']],
-  ['Pasta zucchine e uova',['pasta','zucchine','uova','parmigiano']],
+  ['Tacchino al limone con riso e carote',['fettina di tacchino','limone','riso','carota']],
+  ['Orata al forno con patate e pomodorini',['orata','patata','pomodorino','limone']],
+  ['Merluzzo al forno con patate e zucchine',['filetto di merluzzo','patata','zucchina','limone']],
+  ['Uova strapazzate con spinaci e pane',['uovo','spinaci','pane']],
+  ['Tortellini in brodo con verdure',['tortellini','brodo di carne','carota','zucchina','parmigiano']],
+  ['Pasta zucchine e uova',['pasta','zucchina','uovo','parmigiano']],
   ['Risotto piselli e prosciutto cotto (Bimby)',['riso','piselli','prosciutto cotto','cipolla','brodo vegetale','parmigiano']],
-  ['Hamburger al forno con patate e zucchine',['hamburger','patate','zucchine']],
-  ['Crema di lenticchie rosse e carote (Bimby) con crostini',['lenticchie rosse decorticate','carote','patate','pane']],
+  ['Hamburger al forno con patate e zucchine',['hamburger','patata','zucchina']],
+  ['Crema di lenticchie rosse e carote (Bimby) con crostini',['lenticchie rosse decorticate','carota','patata','pane']],
   ['Risotto zucca e ceci (Bimby)',['riso','zucca','ceci','cipolla','brodo vegetale','parmigiano']]
 ];
 function seed(){
