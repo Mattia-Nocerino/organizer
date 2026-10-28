@@ -3,7 +3,7 @@
   "short_name": "Casa",
   "description": "Menù, spesa, faccende, scadenze, impegni e divieti di sosta.",
   "lang": "it",
-  "id": "/organizer/",
+  "id": "/organizer/casa",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
