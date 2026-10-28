@@ -156,9 +156,16 @@ dialog::backdrop{background:rgba(10,20,18,.45)}
 .seg{display:flex;background:var(--primary-soft);border-radius:999px;padding:3px;margin:4px 0 10px}
 .seg button{flex:1;appearance:none;border:0;background:none;border-radius:999px;padding:7px 10px;font:inherit;font-size:.9rem;color:var(--ink);cursor:pointer}
 .seg button[aria-selected="true"]{background:var(--surface);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.12)}
-.agday{margin:0 0 12px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;margin:6px 0 16px}
+.cw{font-size:.75rem;color:var(--muted);text-align:center;padding-bottom:2px}
+.cd{appearance:none;border:0;background:var(--surface);border-radius:8px;min-height:58px;padding:4px 3px;text-align:left;font:inherit;color:inherit;cursor:pointer;overflow:hidden;display:flex;flex-direction:column;gap:1px}
+.cd b{font-size:.85rem;font-weight:600}
+.cd.today b{color:var(--primary)}
+.cd.sel{outline:2px solid var(--primary)}
+.cd.late b{color:var(--late)}
+.ct{display:block;font-size:.62rem;line-height:1.25;background:var(--primary-soft);border-radius:3px;padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ct.done{text-decoration:line-through;opacity:.6}
 .agh{display:flex;align-items:center;justify-content:space-between;padding:4px 2px}
-.agday.today .agh b{color:var(--primary)}
 .agturno{font-size:.85rem;color:var(--muted);padding:0 2px 6px}
 .vrow{display:flex;gap:12px;align-items:flex-start;padding:10px 14px 10px 10px;border-bottom:1px solid var(--line);border-left:4px solid transparent}
 .vrow:last-child{border-bottom:0}
@@ -583,33 +590,41 @@ function vCasa(){
   return h;
 }
 
-// vista a elenco o a settimana: scelta ricordata su questo dispositivo
-let agVista = 'lista', agOff = 0;
+// vista a elenco o a calendario del mese (senza le ricorrenze): scelta ricordata su questo dispositivo
+let agVista = 'lista', agOff = 0, agSel = '';
 try { agVista = localStorage.getItem('casa-agenda-vista') || 'lista'; } catch (e) {}
-function vSettimana(){
-  const start = addDays(monday(today()), 7 * agOff), tIso = iso(today());
+if (agVista === 'sett') agVista = 'mese';
+function delGiorno(g){
+  return S.agenda.filter(v => !v.ripeti && v.data === g).sort(perData);
+}
+function vMese(){
+  const t = today(), tIso = iso(t);
+  const m0 = new Date(t.getFullYear(), t.getMonth() + agOff, 1), last = new Date(m0.getFullYear(), m0.getMonth() + 1, 0).getDate();
+  if (!agSel || agSel.slice(0, 7) !== iso(m0).slice(0, 7)) agSel = agOff === 0 ? tIso : iso(m0);
   let h = `<div class="weeknav">
-    <button class="iconbtn" data-act="agWk" data-d="-1" aria-label="Settimana precedente">‹</button>
-    <h2>${agOff === 0 ? 'Questa settimana' : agOff === 1 ? 'Prossima settimana' : agOff === -1 ? 'Settimana scorsa' : 'Settimana'}<br><span class="muted small">dal ${fmt(start,{day:'numeric', month:'long'})}</span></h2>
-    <button class="iconbtn" data-act="agWk" data-d="1" aria-label="Settimana successiva">›</button></div>`;
-  for (let i = 0; i < 7; i++){
-    const d = addDays(start, i), g = iso(d), ev = [];
-    // ogni voce nel giorno in cui va fatta (gli avvisi della sera prima stanno la sera prima)
-    for (const v of S.agenda) for (const o of occorrenze(v, g, iso(addDays(d, 1)))) if (momento(v, o)[0] === g) ev.push([o, v]);
-    ev.sort(([a, x], [b, y]) => momento(x, a)[1].localeCompare(momento(y, b)[1]));
-    const turno = turnoTxt(turnoDi(d));
-    h += `<div class="agday ${g === tIso ? 'today' : ''}"><div class="agh"><span><b>${GIORNI[i]}</b> ${d.getDate()} ${fmt(d,{month:'short'})}</span>
-      <button class="iconbtn needs-write" data-act="voce" data-data="${g}" aria-label="Aggiungi a ${GIORNI[i].toLowerCase()}">+</button></div>
-      ${turno ? `<div class="agturno">${CHI}: ${esc(turno)}</div>` : ''}
-      ${ev.length ? box(ev.map(([o, v]) => voceRow(v, o, true))) : ''}</div>`;
+    <button class="iconbtn" data-act="agWk" data-d="-1" aria-label="Mese precedente">‹</button>
+    <h2>${cap(fmt(m0, {month:'long', year:'numeric'}))}</h2>
+    <button class="iconbtn" data-act="agWk" data-d="1" aria-label="Mese successivo">›</button></div>
+    <div class="cal">${GIORNI.map(x => `<span class="cw">${x.slice(0,3)}</span>`).join('')}`;
+  for (let i = 0; i < dayIdx(m0); i++) h += '<span></span>';
+  for (let n = 1; n <= last; n++){
+    const g = iso(new Date(m0.getFullYear(), m0.getMonth(), n)), ev = delGiorno(g);
+    const cls = [g === tIso ? 'today' : '', g === agSel ? 'sel' : '', ev.some(inRitardo) ? 'late' : ''].join(' ');
+    h += `<button class="cd ${cls}" data-act="agDay" data-g="${g}"><b>${n}</b>${ev.slice(0, 2).map(v => `<span class="ct ${v.fatto ? 'done' : ''}">${esc(v.titolo)}</span>`).join('')}${ev.length > 2 ? `<span class="ct">+${ev.length - 2}</span>` : ''}</button>`;
   }
+  h += `</div>`;
+  const d = parse(agSel), ev = delGiorno(agSel), turno = turnoTxt(turnoDi(d));
+  h += `<div class="agh"><h2 style="margin:0">${cap(fmt(d, {weekday:'long', day:'numeric', month:'long'}))}</h2>
+    <button class="iconbtn needs-write" data-act="voce" data-data="${agSel}" aria-label="Aggiungi in questo giorno">+</button></div>
+    ${turno ? `<div class="agturno">${CHI}: ${esc(turno)}</div>` : ''}
+    ${ev.length ? box(ev.map(v => voceRow(v, v.data, true))) : '<p class="muted">Niente in questo giorno.</p>'}`;
   return h;
 }
 function vAgenda(){
   const t = today(), fino = iso(addDays(t, 6));
   let h = `<div class="bar needs-write" style="margin-top:14px"><button class="btn" data-act="voce">Aggiungi</button>${IS_APP ? '<button class="btn small ghost" data-act="notifiche">Attiva le notifiche qui</button>' : ''}</div>
-    <div class="seg" role="tablist"><button data-act="agVista" data-v="lista" aria-selected="${agVista === 'lista'}">Elenco</button><button data-act="agVista" data-v="sett" aria-selected="${agVista === 'sett'}">Settimana</button></div>`;
-  if (agVista === 'sett') return h + vSettimana();
+    <div class="seg" role="tablist"><button data-act="agVista" data-v="lista" aria-selected="${agVista === 'lista'}">Elenco</button><button data-act="agVista" data-v="mese" aria-selected="${agVista === 'mese'}">Calendario</button></div>`;
+  if (agVista === 'mese') return h + vMese();
   h += `<p class="muted small">Con data e ora è un impegno, se si ripete una ricorrenza, senza data una cosa da fare.</p>`;
   const late = S.agenda.filter(inRitardo).sort(perData);
   if (late.length) h += `<h2>In ritardo</h2>` + box(late.map(v => voceRow(v, v.data)));
@@ -895,7 +910,8 @@ document.addEventListener('click', e => {
     case 'notifiche': if (window.casaCloud) window.casaCloud.attivaNotifiche(); else toast('Accedi per attivare le notifiche'); break;
     case 'voce': if (readOnly) return; voceDlg(b.dataset.id, b.dataset.data); break;
     case 'agVista': agVista = b.dataset.v; try { localStorage.setItem('casa-agenda-vista', agVista); } catch (e) {} render(); break;
-    case 'agWk': agOff = Math.max(-4, Math.min(8, agOff + Number(b.dataset.d))); render(); break;
+    case 'agWk': agOff = Math.max(-12, Math.min(24, agOff + Number(b.dataset.d))); agSel = ''; render(); break;
+    case 'agDay': agSel = b.dataset.g; render(); break;
     case 'past': showPast = !showPast; render(); break;
     case 'clearFatti': ask('Eliminare tutte le cose fatte?', 'Elimina').then(ok => { if (ok){ S.agenda = S.agenda.filter(v => !v.fatto); commit(); } }); break;
   }
