@@ -171,6 +171,7 @@ dialog::backdrop{background:rgba(10,20,18,.45)}
 .ct.done{text-decoration:line-through;opacity:.6}
 .agh{display:flex;align-items:center;justify-content:space-between;padding:4px 2px}
 .agturno{font-size:.85rem;color:var(--muted);padding:0 2px 6px}
+.chip.on{background:var(--primary);color:#fff}
 .rh{font-size:1rem;margin:14px 0 6px}
 .dosi{margin:0;padding-left:20px}
 .dosi li{margin:2px 0}
@@ -714,20 +715,46 @@ function slotDlg(wk, key, label){
 
 /* ---------- ricette ---------- */
 const ricettaDi = p => p && self.RICETTE ? self.RICETTE[p.nome.trim().toLowerCase()] || null : null;
-const passoTesto = x => Array.isArray(x) ? x[0] : x;
+// dosi per quante persone: le ricette sono per la famiglia (2 adulti e 2 bambini, circa 3 porzioni da adulto)
+const PERSONE = [['fam','Famiglia'],['1','1'],['2','2'],['3','3'],['4','4'],['6','6']];
+let persone = 'fam';
+try { persone = localStorage.getItem('casa-persone') || 'fam'; } catch (e) {}
+const fattore = () => persone === 'fam' ? 1 : Number(persone) / 3;
+const FRAZ = { '½': .5, '¼': .25, '¾': .75 };
+function num(n){ const i = Math.floor(n), f = n - i; const fr = f >= .75 ? '¾' : f >= .5 ? '½' : f >= .25 ? '¼' : ''; return (i || !fr ? String(i) : '') + fr; }
+// moltiplica le quantità di un testo: grammi e litri arrotondati, pezzi e cucchiai a mezzi (mai sotto 1 se erano almeno 1)
+function scala(t, k){
+  if (k === 1) return t;
+  return t.replace(/(\d+(?:,\d+)?|[½¼¾])(\s*)(g\b|kg\b|litr[io]\b|ml\b)?/g, (m, n, sp, u) => {
+    const v = (FRAZ[n] ?? Number(n.replace(',', '.'))) * k;
+    if (u === 'g' || u === 'ml') return (v >= 50 ? Math.round(v / 10) * 10 : Math.max(5, Math.round(v / 5) * 5)) + sp + u;
+    if (u) return String(Math.round(v * 10) / 10).replace('.', ',') + sp + u;
+    const orig = FRAZ[n] ?? Number(n.replace(',', '.'));
+    return num(Math.max(orig >= 1 ? 1 : .5, Math.round(v * 2) / 2)) + sp;
+  });
+}
+const perTxt = () => persone === 'fam' ? '2 adulti e 2 bambini' : persone === '1' ? '1 persona' : persone + ' persone';
+const passoTesto = x => scala(Array.isArray(x) ? x[0] : x, fattore());
 // "cucchiaio" = velocità soft in antiorario, come l'icona del TM7
 const impostazioni = x => Array.isArray(x) && x[1] ? `<span class="bimby">${x[1].split(' · ').map(t => t === 'cucchiaio' ? '<b title="Cucchiaio: velocità soft, antiorario" aria-label="cucchiaio">🥄</b>' : `<b>${esc(t)}</b>`).join('')}</span>` : '';
 function ricettaDlg(p, cambia){
   const r = ricettaDi(p);
   openDlg(`<h2>${esc(p.nome)}</h2>
-    <p class="muted small">Per 2 adulti e 2 bambini${r.tempo ? ' · circa ' + esc(r.tempo) : ''}${r.bimby ? ' · con il Bimby' : ''}</p>
-    <h3 class="rh">Ingredienti</h3><ul class="dosi">${r.dosi.map(x => `<li>${esc(x)}</li>`).join('')}</ul>
+    <p class="muted small">${r.tempo ? 'Circa ' + esc(r.tempo) : ''}${r.bimby ? ' · con il Bimby' : ''}</p>
+    <p class="muted small" style="margin:8px 0 0">Dosi per</p>
+    <div class="chips" id="per">${PERSONE.map(([k, l]) => `<button type="button" class="chip ${k === persone ? 'on' : ''}" data-k="${k}">${l}</button>`).join('')}</div>
+    <h3 class="rh">Ingredienti, per ${esc(perTxt())}</h3><ul class="dosi">${r.dosi.map(x => `<li>${esc(scala(x, fattore()))}</li>`).join('')}</ul>
+    ${persone !== 'fam' ? '<p class="muted small">Tempi e impostazioni di cottura restano gli stessi.</p>' : ''}
     <h3 class="rh">Preparazione</h3><ol class="passi">${r.passi.map(x => `<li>${esc(passoTesto(x))}${impostazioni(x)}</li>`).join('')}</ol>
     ${r.bimby ? '<p class="muted small"><b>🥄 Cucchiaio</b>: velocità soft in antiorario, mescola piano senza tagliare. <b>Antiorario</b> da solo: le lame girano al contrario e non tagliano. Impostazioni valide per il Bimby TM7 (e anche TM6 e TM5).</p>' : ''}
     <div class="dlg-actions">${cambia ? '<button type="button" class="btn ghost" id="chg">Cambia piatto</button>' : ''}<span class="spacer"></span>
     <button type="button" class="btn ghost" id="cls">Chiudi</button><button type="button" class="btn" id="go">Cucina passo passo</button></div>`, d => {
     d.querySelector('#cls').addEventListener('click', closeDlg);
     d.querySelector('#go').addEventListener('click', () => { closeDlg(); passoDlg(p, 0); });
+    d.querySelectorAll('#per [data-k]').forEach(c => c.addEventListener('click', () => {
+      persone = c.dataset.k; try { localStorage.setItem('casa-persone', persone); } catch (e) {}
+      const y = dlg.scrollTop; closeDlg(); ricettaDlg(p, cambia); dlg.scrollTop = y;
+    }));
     if (cambia) d.querySelector('#chg').addEventListener('click', () => { closeDlg(); cambia(); });
   });
 }
@@ -744,7 +771,7 @@ function passoDlg(p, i){
   tieniAcceso(true);
   openDlg(`<p class="muted small" style="margin:0">${esc(p.nome)} · passo ${i + 1} di ${n}</p>
     <div class="passo"><p>${esc(passoTesto(x))}</p>${impostazioni(x)}</div>
-    ${i === 0 ? `<details class="small"><summary>Ingredienti</summary><ul class="dosi">${r.dosi.map(y => `<li>${esc(y)}</li>`).join('')}</ul></details>` : ''}
+    ${i === 0 ? `<details class="small"><summary>Ingredienti, per ${esc(perTxt())}</summary><ul class="dosi">${r.dosi.map(y => `<li>${esc(scala(y, fattore()))}</li>`).join('')}</ul></details>` : ''}
     <div class="dlg-actions"><button type="button" class="btn ghost" id="pr" ${i === 0 ? 'disabled' : ''}>Indietro</button><span class="spacer"></span>
     <button type="button" class="btn ghost" id="cls">Esci</button><button type="button" class="btn" id="nx">${i === n - 1 ? 'Fine' : 'Avanti'}</button></div>`, d => {
     const esci = () => { tieniAcceso(false); closeDlg(); };
