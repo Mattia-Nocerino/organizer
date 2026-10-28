@@ -374,7 +374,7 @@ setStatus('local');
 let toastT;
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2800); }
 const dlg = $('#dlg');
-function openDlg(html, mount){ dlg.innerHTML = `<div class="dlg">${html}</div>`; dlg.showModal(); if (mount) mount(dlg); }
+function openDlg(html, mount){ delete dlg.dataset.acceso; dlg.innerHTML = `<div class="dlg">${html}</div>`; dlg.showModal(); if (mount) mount(dlg); }
 function closeDlg(){ if (dlg.open) dlg.close(); }
 dlg.addEventListener('click', e => { if (e.target === dlg) closeDlg(); });
 function ask(msg, yes = 'Conferma'){
@@ -757,18 +757,22 @@ function ricettaDlg(p, cambia){
     }));
     if (cambia) d.querySelector('#chg').addEventListener('click', () => { closeDlg(); cambia(); });
   });
+  dlg.dataset.acceso = '1'; tieniAcceso(true);
 }
 // un passo alla volta, a caratteri grandi, con lo schermo che resta acceso
 let wake = null;
 async function tieniAcceso(on){
   try {
-    if (on && !wake && navigator.wakeLock) wake = await navigator.wakeLock.request('screen');
+    if (on && !wake && navigator.wakeLock){ wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); }
     if (!on && wake){ await wake.release(); wake = null; }
   } catch (e) { wake = null; }
 }
+// con una ricetta aperta il telefono non si blocca; il permesso si perde uscendo dall'app, lo riprendo al ritorno
+const ricettaAperta = () => dlg.open && dlg.dataset.acceso === '1';
+dlg.addEventListener('close', () => setTimeout(() => { if (!ricettaAperta()) tieniAcceso(false); }, 0));
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && ricettaAperta()) tieniAcceso(true); });
 function passoDlg(p, i){
   const r = ricettaDi(p), n = r.passi.length, x = r.passi[i];
-  tieniAcceso(true);
   openDlg(`<p class="muted small" style="margin:0">${esc(p.nome)} · passo ${i + 1} di ${n}</p>
     <div class="passo"><p>${esc(passoTesto(x))}</p>${impostazioni(x)}</div>
     ${i === 0 ? `<details class="small"><summary>Ingredienti, per ${esc(perTxt())}</summary><ul class="dosi">${r.dosi.map(y => `<li>${esc(scala(y, fattore()))}</li>`).join('')}</ul></details>` : ''}
@@ -779,6 +783,7 @@ function passoDlg(p, i){
     d.querySelector('#pr').addEventListener('click', () => { closeDlg(); passoDlg(p, i - 1); });
     d.querySelector('#nx').addEventListener('click', () => { if (i === n - 1){ esci(); toast('Buon appetito!'); } else { closeDlg(); passoDlg(p, i + 1); } });
   });
+  dlg.dataset.acceso = '1'; tieniAcceso(true);
 }
 
 /* ---------- dialog: piatto ---------- */
