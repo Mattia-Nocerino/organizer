@@ -56,7 +56,7 @@ async function start(){
     const ref = F.doc(db, 'utenti', u.uid);
     app.attachCloud({
       set: obj => F.setDoc(ref, obj),
-      onSnapshot: (next, onErr) => F.onSnapshot(ref, s => next({ exists: s.exists(), data: () => s.data() }), onErr)
+      onSnapshot: (next, onErr) => F.onSnapshot(ref, s => next({ exists: s.exists(), fromCache: s.metadata.fromCache, data: () => s.data() }), onErr)
     });
   });
 

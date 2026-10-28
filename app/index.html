@@ -249,7 +249,7 @@ try { const r = localStorage.getItem(LS); if (r) S = norm(JSON.parse(r)); } catc
 const hasContent = s => s.piatti.length || s.todo.length || Object.keys(s.orari).length || s.faccende.length || s.serali.length || s.scadenze.length || s.impegni.length || Object.keys(s.piani).length;
 
 /* ---------- salvataggio e sincronizzazione ---------- */
-let ref = null, timer = null, saving = false, again = false, readOnly = false;
+let ref = null, timer = null, saving = false, again = false, readOnly = false, loaded = false;
 function setStatus(k){
   const el = $('#sync');
   const t = { ok:'Sincronizzato', saving:'Salvataggio…', local:'Salvato su questo dispositivo', ro:'Solo lettura', err:'Non salvato, riprova più tardi' }[k] || '';
@@ -260,7 +260,8 @@ function commit(){
   pruneOld();
   try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {}
   render();
-  if (ref && !readOnly){ clearTimeout(timer); timer = setTimeout(flush, 600); setStatus('saving'); }
+  // finché non so cosa c'è nel cloud non scrivo niente, per non coprire i dati salvati da un altro dispositivo
+  if (ref && !readOnly && loaded){ clearTimeout(timer); timer = setTimeout(flush, 600); setStatus('saving'); }
 }
 async function flush(){
   timer = null;
@@ -283,18 +284,20 @@ function pruneOld(){
 // cloud.js collega qui il documento dell'utente dopo l'accesso: { set(obj), onSnapshot(next, err) }
 let unsub = null;
 function attachCloud(r){
-  detachCloud(); ref = r; readOnly = false;
-  let first = true;
+  detachCloud(); ref = r; readOnly = false; loaded = false;
+  setStatus('saving');
   unsub = ref.onSnapshot(snap => {
-    if (timer || saving){ first = false; return; }
+    // "non esiste" dalla sola cache del telefono non vuol dire niente: aspetto la risposta del server
+    if (!snap.exists && snap.fromCache) return;
+    const first = !loaded; loaded = true;
+    if (!first && (timer || saving)) return;
     if (snap.exists){
       S = norm(JSON.parse(JSON.stringify(snap.data())));
       try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) {}
       render(); setStatus('ok'); checkSilenzia();
     } else if (first && hasContent(S)){
-      flush();
+      flush(); // primo accesso: porto nel cloud i dati che c'erano sul dispositivo
     } else setStatus('ok');
-    first = false;
   }, () => setStatus('err'));
 }
 // toccando la notifica di un impegno si arriva con ?silenzia=<id>: chiedo se fermare gli avvisi successivi
@@ -308,8 +311,8 @@ function checkSilenzia(){
     if (x){ x.muto = true; commit(); toast('Avvisi silenziati'); }
   });
 }
-function detachCloud(){ if (unsub) unsub(); unsub = null; ref = null; clearTimeout(timer); timer = null; setStatus('local'); }
-function importa(o){ S = norm(o); commit(); }
+function detachCloud(){ if (unsub) unsub(); unsub = null; ref = null; loaded = false; clearTimeout(timer); timer = null; setStatus('local'); }
+function importa(o){ S = norm(o); if (ref) loaded = true; commit(); }
 setStatus('local');
 
 /* ---------- toast e dialog ---------- */
