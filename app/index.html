@@ -153,6 +153,13 @@ dialog::backdrop{background:rgba(10,20,18,.45)}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
 .chip{appearance:none;border:0;background:var(--primary-soft);color:var(--ink);padding:5px 12px;border-radius:999px;font-size:.85rem;cursor:pointer}
 .chip input{accent-color:var(--primary);margin:0 4px 0 0;vertical-align:-2px}
+.seg{display:flex;background:var(--primary-soft);border-radius:999px;padding:3px;margin:4px 0 10px}
+.seg button{flex:1;appearance:none;border:0;background:none;border-radius:999px;padding:7px 10px;font:inherit;font-size:.9rem;color:var(--ink);cursor:pointer}
+.seg button[aria-selected="true"]{background:var(--surface);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.agday{margin:0 0 12px}
+.agh{display:flex;align-items:center;justify-content:space-between;padding:4px 2px}
+.agday.today .agh b{color:var(--primary)}
+.agturno{font-size:.85rem;color:var(--muted);padding:0 2px 6px}
 .vrow{display:flex;gap:12px;align-items:flex-start;padding:10px 14px 10px 10px;border-bottom:1px solid var(--line);border-left:4px solid transparent}
 .vrow:last-child{border-bottom:0}
 .vrow.late{border-left-color:var(--late)}
@@ -512,9 +519,11 @@ function prossimi(t, n){
 }
 const stasera = () => { const tm = iso(addDays(today(), 1)); return S.agenda.filter(v => v.sera && v.muto !== tm && occorrenze(v, tm, tm).length).sort((a,b) => a.sera.localeCompare(b.sera)); };
 // d: la volta mostrata ('' negli elenchi delle ricorrenze)
-function voceRow(v, d){
-  const meta = [d ? quandoTxt(v, d) : '', v.ripeti === 'sett' && d ? '' : ripetiTxt(v), d ? '' : avvisiTxt(v), v.note].filter(Boolean).join(' · ');
-  const st = inRitardo(v) ? 'late' : d && diffDays(parse(momento(v, d)[0]), today()) <= 1 ? 'soon' : '';
+function voceRow(v, d, soloOra){
+  const [, o] = d ? momento(v, d) : [];
+  const meta = [d ? (soloOra ? (o ? (v.sera && !v.ora ? 'la sera alle ' : 'alle ') + o : '') : quandoTxt(v, d)) : '', v.ripeti === 'sett' && d ? '' : ripetiTxt(v), d ? '' : avvisiTxt(v), v.note].filter(Boolean).join(' · ');
+  const dd = d ? diffDays(parse(momento(v, d)[0]), today()) : 9;
+  const st = inRitardo(v) ? 'late' : dd >= 0 && dd <= 1 ? 'soon' : '';
   return `<div class="vrow ${st} ${v.fatto ? 'done' : ''}">${v.ripeti === 'sett' ? '<span class="vdot" aria-hidden="true">↻</span>'
       : `<input type="checkbox" class="needs-write" data-act="tickVoce" data-id="${v.id}" ${v.fatto ? 'checked' : ''} aria-label="Fatto">`}
     <button class="vtxt" data-act="voce" data-id="${v.id}"><span class="t">${esc(v.titolo)}</span>${meta ? `<span class="m">${esc(meta)}</span>` : ''}${d && v.muto === d ? '<span class="m">Avvisi silenziati</span>' : ''}</button></div>`;
@@ -574,10 +583,34 @@ function vCasa(){
   return h;
 }
 
+// vista a elenco o a settimana: scelta ricordata su questo dispositivo
+let agVista = 'lista', agOff = 0;
+try { agVista = localStorage.getItem('casa-agenda-vista') || 'lista'; } catch (e) {}
+function vSettimana(){
+  const start = addDays(monday(today()), 7 * agOff), tIso = iso(today());
+  let h = `<div class="weeknav">
+    <button class="iconbtn" data-act="agWk" data-d="-1" aria-label="Settimana precedente">‹</button>
+    <h2>${agOff === 0 ? 'Questa settimana' : agOff === 1 ? 'Prossima settimana' : agOff === -1 ? 'Settimana scorsa' : 'Settimana'}<br><span class="muted small">dal ${fmt(start,{day:'numeric', month:'long'})}</span></h2>
+    <button class="iconbtn" data-act="agWk" data-d="1" aria-label="Settimana successiva">›</button></div>`;
+  for (let i = 0; i < 7; i++){
+    const d = addDays(start, i), g = iso(d), ev = [];
+    // ogni voce nel giorno in cui va fatta (gli avvisi della sera prima stanno la sera prima)
+    for (const v of S.agenda) for (const o of occorrenze(v, g, iso(addDays(d, 1)))) if (momento(v, o)[0] === g) ev.push([o, v]);
+    ev.sort(([a, x], [b, y]) => momento(x, a)[1].localeCompare(momento(y, b)[1]));
+    const turno = turnoTxt(turnoDi(d));
+    h += `<div class="agday ${g === tIso ? 'today' : ''}"><div class="agh"><span><b>${GIORNI[i]}</b> ${d.getDate()} ${fmt(d,{month:'short'})}</span>
+      <button class="iconbtn needs-write" data-act="voce" data-data="${g}" aria-label="Aggiungi a ${GIORNI[i].toLowerCase()}">+</button></div>
+      ${turno ? `<div class="agturno">${CHI}: ${esc(turno)}</div>` : ''}
+      ${ev.length ? box(ev.map(([o, v]) => voceRow(v, o, true))) : ''}</div>`;
+  }
+  return h;
+}
 function vAgenda(){
   const t = today(), fino = iso(addDays(t, 6));
   let h = `<div class="bar needs-write" style="margin-top:14px"><button class="btn" data-act="voce">Aggiungi</button>${IS_APP ? '<button class="btn small ghost" data-act="notifiche">Attiva le notifiche qui</button>' : ''}</div>
-    <p class="muted small">Con data e ora è un impegno, se si ripete una ricorrenza, senza data una cosa da fare.</p>`;
+    <div class="seg" role="tablist"><button data-act="agVista" data-v="lista" aria-selected="${agVista === 'lista'}">Elenco</button><button data-act="agVista" data-v="sett" aria-selected="${agVista === 'sett'}">Settimana</button></div>`;
+  if (agVista === 'sett') return h + vSettimana();
+  h += `<p class="muted small">Con data e ora è un impegno, se si ripete una ricorrenza, senza data una cosa da fare.</p>`;
   const late = S.agenda.filter(inRitardo).sort(perData);
   if (late.length) h += `<h2>In ritardo</h2>` + box(late.map(v => voceRow(v, v.data)));
   const ev = prossimi(t, 7);
@@ -711,12 +744,12 @@ function turnoDlg(wk, i){
 }
 
 /* ---------- dialog: voce dell'agenda ---------- */
-function voceDlg(id){
+function voceDlg(id, giorno){
   const v = id ? S.agenda.find(x => x.id === id) : null;
   const g = new Set(v ? v.giorni : []), av = new Set(v ? v.avvisi : []);
   openDlg(`<h2>${v ? 'Modifica' : 'Aggiungi'}</h2>
     <label class="f">Cosa<input type="text" id="t" value="${v ? esc(v.titolo) : ''}" placeholder="Pediatra, bollo auto, chiamare l’idraulico…"></label>
-    <div class="two"><label class="f" id="dBox">Giorno<input type="date" id="d" value="${v ? v.data : ''}"></label>
+    <div class="two"><label class="f" id="dBox">Giorno<input type="date" id="d" value="${v ? v.data : giorno || ''}"></label>
     <label class="f">Ora<input type="time" id="o" value="${v ? esc(v.ora) : ''}"></label></div>
     <label class="f">Si ripete<select id="r">${RIPETI.map(([k, l]) => `<option value="${k}" ${v && v.ripeti === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
     <div id="sBox"><div class="chips" id="gg">${GIORNI.map((x,i) => `<label class="chip"><input type="checkbox" value="${i}" ${g.has(i) ? 'checked' : ''}>${x.slice(0,3)}</label>`).join('')}</div>
@@ -860,7 +893,9 @@ document.addEventListener('click', e => {
     case 'copiaOrari': copiaOrari(); break;
     case 'svuotaOrari': { const wk = wkKey(wOff); ask('Togliere tutti gli orari di questa settimana?', 'Svuota').then(ok => { if (ok){ delete S.orari[wk]; commit(); } }); break; }
     case 'notifiche': if (window.casaCloud) window.casaCloud.attivaNotifiche(); else toast('Accedi per attivare le notifiche'); break;
-    case 'voce': if (readOnly) return; voceDlg(b.dataset.id); break;
+    case 'voce': if (readOnly) return; voceDlg(b.dataset.id, b.dataset.data); break;
+    case 'agVista': agVista = b.dataset.v; try { localStorage.setItem('casa-agenda-vista', agVista); } catch (e) {} render(); break;
+    case 'agWk': agOff = Math.max(-4, Math.min(8, agOff + Number(b.dataset.d))); render(); break;
     case 'past': showPast = !showPast; render(); break;
     case 'clearFatti': ask('Eliminare tutte le cose fatte?', 'Elimina').then(ok => { if (ok){ S.agenda = S.agenda.filter(v => !v.fatto); commit(); } }); break;
   }
