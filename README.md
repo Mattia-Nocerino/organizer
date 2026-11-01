@@ -24,7 +24,7 @@ App per il telefono e il computer (PWA): menù settimanale, lista della spesa, f
 
 ### Promemoria puntuali (funzione Firebase)
 
-Le esecuzioni programmate di GitHub (`schedule`) partono spesso con ore di ritardo, quindi i promemoria li manda una funzione programmata di Firebase (`functions/`), ogni 10 minuti, ora di Roma. Una volta sola:
+Le esecuzioni programmate di GitHub (`schedule`) partono spesso con ore di ritardo, quindi i promemoria li manda una funzione programmata di Firebase (`functions/`), ogni minuto, ora di Roma. Una volta sola:
 
 1. Firebase → Impostazioni → Utilizzo e fatturazione → passa al piano **Blaze**. Con questo uso si resta nella quota gratuita; conviene impostare un avviso di budget di 1 €.
 2. Google Cloud → IAM (`https://console.cloud.google.com/iam-admin/iam?project=organizer-bb3dc`) → l'account `firebase-adminsdk-…@organizer-bb3dc.iam.gserviceaccount.com` → Modifica → aggiungi i ruoli **Editor**, **Cloud Functions Admin** e **Cloud Run Admin**.

@@ -1,6 +1,6 @@
 name: Pubblica la funzione dei promemoria
 
-# Pubblica su Firebase la funzione programmata che ogni 10 minuti manda le notifiche dell'agenda.
+# Pubblica su Firebase la funzione programmata che ogni minuto manda le notifiche dell'agenda.
 # Serve il piano Blaze e, sull'account di servizio di FIREBASE_SERVICE_ACCOUNT, i ruoli
 # Editor, Cloud Functions Admin e Cloud Run Admin (vedi il README).
 on:

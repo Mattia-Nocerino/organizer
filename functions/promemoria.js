@@ -2,7 +2,7 @@
 // - un avviso per ogni anticipo scelto (all'ora, 30 minuti, 1 ora… prima); senza ora si conta dalle 9;
 // - l'eventuale avviso della sera prima, all'ora scelta (raccolta differenziata, divieti di sosta);
 // salvo che quella volta sia stata silenziata dalla notifica. Ogni avviso parte una volta sola.
-// Lo usano la funzione programmata di Firebase (ogni 10 minuti) e, per le prove, GitHub Actions.
+// Lo usano la funzione programmata di Firebase (ogni minuto) e, per le prove, GitHub Actions.
 // prova: manda subito una notifica di prova a tutti i dispositivi registrati.
 export async function promemoria({ db, messaging, prova = false, appUrl }){
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {

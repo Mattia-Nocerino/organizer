@@ -516,7 +516,7 @@ function vSpesa(){
 // avvisi: minuti prima (senza ora si conta dalle 9); sera: avviso la sera prima a quell'ora; muto: la volta silenziata.
 const IS_APP = true;
 const RIPETI = [['','Mai'],['sett','Ogni settimana'],['1','Ogni mese'],['3','Ogni 3 mesi'],['6','Ogni 6 mesi'],['12','Ogni anno'],['24','Ogni 2 anni']];
-const AVVISI = [[0,'All’ora'],[30,'30 minuti'],[60,'1 ora'],[120,'2 ore'],[1440,'1 giorno'],[10080,'1 settimana'],[43200,'1 mese']];
+const AVVISI = [[0,'All’ora'],[5,'5 minuti'],[10,'10 minuti'],[15,'15 minuti'],[30,'30 minuti'],[60,'1 ora'],[120,'2 ore'],[1440,'1 giorno'],[10080,'1 settimana'],[43200,'1 mese']];
 const PARITA = { '': '', pari: ', solo date pari', dispari: ', solo date dispari' };
 const elenco = a => a.length > 1 ? a.slice(0, -1).join(', ') + ' e ' + a[a.length - 1] : (a[0] || '');
 const settIl = (v, d) => (v.giorni || []).includes(dayIdx(d)) && (!v.parita || (d.getDate() % 2 === 0) === (v.parita === 'pari'));
