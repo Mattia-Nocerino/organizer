@@ -1,0 +1,31 @@
+name: Pubblica la funzione dei promemoria
+
+# Pubblica su Firebase la funzione programmata che ogni 10 minuti manda le notifiche dell'agenda.
+# Serve il piano Blaze e, sull'account di servizio di FIREBASE_SERVICE_ACCOUNT, i ruoli
+# Editor, Cloud Functions Admin e Cloud Run Admin (vedi il README).
+on:
+  workflow_dispatch:
+
+concurrency: funzioni
+
+jobs:
+  pubblica:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+        working-directory: functions
+      - name: Credenziali
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
+      - name: Pubblica
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: npx --yes firebase-tools@13 deploy --only functions --project organizer-bb3dc --force --non-interactive
+      - if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"

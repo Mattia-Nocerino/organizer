@@ -22,14 +22,12 @@ App per il telefono e il computer (PWA): menù settimanale, lista della spesa, f
 - Agenda → **Attiva le notifiche qui**, su ogni dispositivo dove vuoi ricevere gli avvisi.
 - Per provare: GitHub → Actions → Promemoria → Run workflow, spunta "Manda una notifica di prova adesso".
 
-### Promemoria puntuali
+### Promemoria puntuali (funzione Firebase)
 
-Le esecuzioni programmate di GitHub (`schedule`) sono "al meglio": spesso partono con ore di ritardo o saltano. Per avere gli avvisi in orario un servizio gratuito come [cron-job.org](https://cron-job.org) fa partire il workflow ogni 10 minuti:
+Le esecuzioni programmate di GitHub (`schedule`) partono spesso con ore di ritardo, quindi i promemoria li manda una funzione programmata di Firebase (`functions/`), ogni 10 minuti, ora di Roma. Una volta sola:
 
-1. GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token: solo il repository `organizer`, permesso **Actions: Read and write**, scadenza lunga.
-2. cron-job.org → Create cronjob:
-   - URL: `https://api.github.com/repos/Mattia-Nocerino/organizer/actions/workflows/promemoria.yml/dispatches`
-   - Ogni 10 minuti
-   - Advanced: metodo **POST**, header `Authorization: Bearer <token>`, `Accept: application/vnd.github+json`, `Content-Type: application/json`, corpo `{"ref":"main"}`.
-3. La risposta giusta è `204`.
-- Account → Importa da file carica i dati esportati dalla versione precedente.
+1. Firebase → Impostazioni → Utilizzo e fatturazione → passa al piano **Blaze**. Con questo uso si resta nella quota gratuita; conviene impostare un avviso di budget di 1 €.
+2. Google Cloud → IAM (`https://console.cloud.google.com/iam-admin/iam?project=organizer-bb3dc`) → l'account `firebase-adminsdk-…@organizer-bb3dc.iam.gserviceaccount.com` → Modifica → aggiungi i ruoli **Editor**, **Cloud Functions Admin** e **Cloud Run Admin**.
+3. GitHub → Actions → **Pubblica la funzione dei promemoria** → Run workflow.
+
+La logica è in `functions/promemoria.js`, la stessa usata da Actions → Promemoria per la notifica di prova.
