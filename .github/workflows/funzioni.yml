@@ -23,6 +23,14 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
+      - name: API di fatturazione
+        # firebase-tools controlla il piano Blaze tramite questa API, che nei progetti nuovi è spenta
+        run: |
+          gcloud auth activate-service-account --key-file="$RUNNER_TEMP/sa.json" --quiet
+          if ! gcloud services list --enabled --project organizer-bb3dc --format='value(config.name)' | grep -q '^cloudbilling.googleapis.com$'; then
+            gcloud services enable cloudbilling.googleapis.com --project organizer-bb3dc
+            sleep 60
+          fi
       - name: Pubblica
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
