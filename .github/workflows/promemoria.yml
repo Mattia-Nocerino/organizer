@@ -1,11 +1,8 @@
 name: Promemoria
 
+# Gli avvisi li manda la funzione programmata di Firebase (functions/). Questo serve per la notifica di prova.
+
 on:
-  schedule:
-    # ogni 10 minuti, tutto il giorno: gli avvisi dell'agenda. GitHub però salta o ritarda spesso
-    # le esecuzioni programmate, quindi il giro affidabile è un servizio esterno (cron-job.org)
-    # che chiama workflow_dispatch ogni 10 minuti: vedi il README.
-    - cron: '*/10 * * * *'
   workflow_dispatch:
     inputs:
       prova:

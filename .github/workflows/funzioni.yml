@@ -35,5 +35,10 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
         run: npx --yes firebase-tools@14 deploy --only functions --project organizer-bb3dc --force --non-interactive
+      - name: Pulizia delle vecchie versioni
+        # tiene solo le immagini dell'ultimo giorno, così lo spazio occupato resta nella quota gratuita
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: npx --yes firebase-tools@14 functions:artifacts:setpolicy --location europe-west1 --days 1 --project organizer-bb3dc --force --non-interactive
       - if: always()
         run: rm -f "$RUNNER_TEMP/sa.json"
